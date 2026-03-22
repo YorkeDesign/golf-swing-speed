@@ -643,7 +643,8 @@ The angle between the lead arm and club shaft during the downswing is referred t
 #### Casting vs Lag Retention
 - **Casting / Early Release:** Loss of lag angle early in the downswing. The wrist unhinge begins at or shortly after the transition, causing the club head to overtake the hands before impact
 - **Maintained Lag:** Wrist angle preserved deep into the downswing. Release occurs in the last 30–50° of arm rotation before impact
-- **Speed Impact:** TPI (Titleist Performance Institute) research shows casting can cost **15–30 yards** of carry distance. This translates to roughly **5–15 mph of club head speed** lost through inefficient energy transfer
+- **Speed Impact (quantified):** Chu et al. (2010, Golf Science Journal, study of 308 golfers) found that a decrease in wrist cock angle of **10° at late downswing = ~5 mph increase in club head speed**. An amateur who casts 30° early could be losing **10–15 mph**. At ~2.5 yards carry per 1 mph, that's **25–37 yards** lost
+- **Citation:** Chu et al., "How Amateur Golfers Deliver Energy to the Driver" — golfsciencejournal.org/article/12640
 - **Visual indicator:** If the club shaft passes vertical before the hands reach hip height, the golfer is casting
 
 #### HackMotion Wrist Measurement Standard (Industry Reference)
@@ -666,8 +667,9 @@ HackMotion — the leading wrist measurement sensor — tracks three axes:
   shaft_vector = club_head_position - wrist_position
   lag_angle = angle_between(forearm_vector, shaft_vector)
   ```
-- **2D limitation:** Front-on camera introduces perspective error on this measurement. The angle measured in 2D will differ from true 3D angle. However, for **relative comparison** between swings (is this swing more/less cast than the last?) 2D is sufficient
-- **Accuracy expectation:** ±5–10° absolute accuracy from 2D front-on video. Sufficient for detecting casting vs lag retention patterns
+- **2D limitation — CRITICAL:** Sportsbox AI warns that a golfer can appear to have **31° in 2D front-on view but actually 72° in 3D**. The swing plane is not perpendicular to the camera, so 2D projections severely distort the true angle
+- **Accuracy expectation:** ±5–10° absolute accuracy from 2D front-on video, but 2D values will systematically differ from true 3D values. **Must present as relative comparison metric between swings, NOT absolute degrees**
+- **Recommendation:** Report a "Lag Score" (relative metric for comparing swings) rather than claiming accurate absolute degree measurements
 
 #### Metric We Should Report
 - **"Lag Retention Index" (LRI)** — a custom metric: the ratio of lag angle at lead-arm-parallel to lag angle at top of backswing. Higher = more lag retained
