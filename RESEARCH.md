@@ -613,6 +613,102 @@ IDLE → SETUP_DETECTED → READY → SWING_IN_PROGRESS → SWING_COMPLETE → P
 - **Duration:** Typical full swing is 0.8–1.5 seconds. If >2 seconds, likely a waggle or interrupted swing
 - **Impact detection:** Sharp spike in audio or maximum speed point in tracking
 
+### 4.6 Lag Angle / Wrist Release Analysis
+
+#### Industry Terminology
+The angle between the lead arm and club shaft during the downswing is referred to by several terms:
+- **Lag Angle** — the most common term. The angle between the lead forearm and the club shaft
+- **Wrist Cock Angle** / **Wrist Set Angle** — the angle created by the wrist hinge (radial deviation)
+- **Release Angle** — the lag angle at the point where the wrist begins to unhinge
+- **Lever Angle** — biomechanics term for the same measurement
+- GEARS 3D system calls it **"lead wrist set angle"**
+
+#### How It's Measured
+- **Definition:** The angle formed between the lead forearm line (elbow to wrist) and the club shaft line (wrist to club head)
+- **Key measurement points:**
+  - **Top of backswing:** Typically 80–100° for tour pros, ≥90° for amateurs
+  - **Lead arm parallel (downswing):** The critical measurement point. 45° shaft angle is ideal and achievable for average golfers
+  - **Shaft horizontal (downswing):** Tour pros maintain 100–120°. Below 110° virtually ensures no "flip"
+  - **Impact:** Ideally the hands are ahead of the club head (forward shaft lean). Shaft lean angle of 5–15° at impact indicates maintained lag
+- **Camera angle matters:** Must measure perpendicular to the angle plane. Front-on view can distort — club laid off appears to have less lag than actual. Down-the-line view is more accurate for this measurement
+
+#### Benchmark Numbers
+| Player Type | Lag at Top | Lag at Lead Arm Parallel | Lag at Shaft Horizontal |
+|---|---|---|---|
+| Tour Pro (average) | 80–100° | ~45° shaft to ground | 100–120° |
+| Tour Pro (extreme, e.g., Sergio Garcia) | <80° | ~30° shaft to ground | 70–100° |
+| Good amateur (5-10 hdcp) | 90–100° | 50–60° | 90–110° |
+| High handicapper (20+) | 90–100° (similar setup) | 70–90° (early release) | 60–80° (severe casting) |
+
+#### Casting vs Lag Retention
+- **Casting / Early Release:** Loss of lag angle early in the downswing. The wrist unhinge begins at or shortly after the transition, causing the club head to overtake the hands before impact
+- **Maintained Lag:** Wrist angle preserved deep into the downswing. Release occurs in the last 30–50° of arm rotation before impact
+- **Speed Impact:** TPI (Titleist Performance Institute) research shows casting can cost **15–30 yards** of carry distance. This translates to roughly **5–15 mph of club head speed** lost through inefficient energy transfer
+- **Visual indicator:** If the club shaft passes vertical before the hands reach hip height, the golfer is casting
+
+#### HackMotion Wrist Measurement Standard (Industry Reference)
+HackMotion — the leading wrist measurement sensor — tracks three axes:
+1. **Flexion / Extension** — up-down bending of wrist. Flexion = "bowed" (flat/strong at impact). Extension = "cupped" (weak at impact)
+2. **Radial / Ulnar Deviation** — side-to-side hinge. Radial = "cocked" (creating lag). Ulnar = "uncocked" (releasing lag)
+3. **Rotation (Pronation / Supination)** — forearm rotation
+
+**Key data from HackMotion:**
+- Tour pros add 15–20° of radial deviation at the top, then release back to starting angle by impact
+- Amateurs show rapid loss of radial deviation (uncocking) early in downswing — the biomechanical signature of casting
+- At impact: great players have slightly flexed (bowed) lead wrist; poor players have extended (cupped) wrist
+
+#### Measuring from 2D Video (Our App's Approach)
+- **MediaPipe Pose provides:** Shoulder, elbow, and wrist landmarks (33 body keypoints total)
+- **Club shaft detection:** Needed from our YOLO/tracking model — gives club head position
+- **Lag angle calculation from landmarks:**
+  ```
+  forearm_vector = wrist_position - elbow_position
+  shaft_vector = club_head_position - wrist_position
+  lag_angle = angle_between(forearm_vector, shaft_vector)
+  ```
+- **2D limitation:** Front-on camera introduces perspective error on this measurement. The angle measured in 2D will differ from true 3D angle. However, for **relative comparison** between swings (is this swing more/less cast than the last?) 2D is sufficient
+- **Accuracy expectation:** ±5–10° absolute accuracy from 2D front-on video. Sufficient for detecting casting vs lag retention patterns
+
+#### Metric We Should Report
+- **"Lag Retention Index" (LRI)** — a custom metric: the ratio of lag angle at lead-arm-parallel to lag angle at top of backswing. Higher = more lag retained
+  - Tour pro typical LRI: 0.5–0.7 (retains 50–70% of set angle)
+  - Casting amateur typical LRI: 0.2–0.4 (loses 60–80% early)
+- **"Release Point"** — the position in the downswing arc (in degrees of arm rotation before impact) where the lag angle begins decreasing rapidly
+  - Tour pro: 30–50° before impact
+  - Casting amateur: 90–120° before impact (very early)
+- **"Shaft Lean at Impact"** — the angle between the shaft and vertical at the moment of impact
+  - Positive = hands ahead (forward lean, good)
+  - Negative = club head ahead (scooping/flipping, bad)
+  - Tour pro with irons: +10° to +20°
+
+### 4.7 Audio Feedback System Design
+
+#### Status Feedback Modes
+Two modes selectable by user:
+1. **Beep Mode** — distinct tonal beeps for each state (low latency, works in noisy environments)
+2. **Voice Mode** — spoken words via AVSpeechSynthesizer (clearer but slightly higher latency)
+
+#### Feedback Events and Sounds
+| Event | Beep Mode | Voice Mode |
+|---|---|---|
+| Player detected in frame | Single low tone | "Player detected" |
+| Starting pose identified / Ready | Double ascending beep | "Ready" |
+| Swing captured successfully | Single bright confirmation tone | "Swing captured — [X] mph" |
+| Processing complete with speed | Triple ascending beep + speed via speech | "[X] miles per hour" |
+| Error: swing not detected | Descending two-tone (error pattern) | "Swing not detected, try again" |
+| Error: tracking lost mid-swing | Rapid triple beep (warning) | "Tracking lost, please retry" |
+| Struggling to detect start position | Slow repeating pulse tone | "Adjust position — stand in frame" |
+| Calibration complete | Rising three-note chime | "Calibration complete" |
+
+#### iOS Implementation
+- **Beep tones:** Custom `.wav` or `.aif` files (short, <100ms) played via `AVAudioPlayer` or `AudioServicesPlaySystemSound` for minimum latency
+- **Voice alerts:** `AVSpeechSynthesizer` with `AVSpeechUtterance` — configurable rate, pitch, voice
+- **Haptic feedback:** `UINotificationFeedbackGenerator` paired with audio for tactile confirmation (success/error/warning patterns)
+- **Core Haptics:** `CHHapticEngine` for custom haptic patterns synchronized with audio
+- **AirPods/Bluetooth:** Audio routes automatically to connected headphones via `AVAudioSession` with `.playback` category. Set `.allowBluetooth` option. Voice mode especially valuable with AirPods — golfer hears feedback without phone screen
+- **Audio session config:** Category `.playback`, mode `.voicePrompt`, options `.duckOthers` + `.interruptSpokenAudioAndMixWithOthers` — ensures feedback audio plays over any background music and ducks appropriately
+- **Latency:** System sounds via AudioToolbox: <10ms. AVAudioPlayer: ~20-50ms. AVSpeechSynthesizer: ~100-200ms. All acceptable for post-event feedback
+
 ---
 
 ## 5. Key Challenges

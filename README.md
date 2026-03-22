@@ -88,11 +88,14 @@ The app is positioned **front-on to the player**, capturing the full arc of the 
 - [x] Speed curve calculation
 - [x] Impact speed identification
 - [x] Voice readout of impact speed
+- [x] Audio feedback system (beep + voice modes for system status, AirPods support)
 - [x] Swing history and data storage
+- [x] Lag angle / wrist release analysis (detect casting vs maintained lag)
+- [x] Swing replay with arm/shaft overlay and lag angle visualization
 
 ### v1 — Explicitly Out of Scope
 
-The following are deliberately excluded from v1 to keep focus on the core speed metric:
+The following are deliberately excluded from v1 to keep focus on club head speed and swing efficiency:
 
 - ❌ Ball tracking / ball flight analysis
 - ❌ Club face angle
@@ -102,7 +105,6 @@ The following are deliberately excluded from v1 to keep focus on the core speed 
 - ❌ Spin rate
 - ❌ Ball speed
 - ❌ Carry distance prediction
-- ❌ Any metric beyond club head speed
 
 ### Future Versions (Potential)
 

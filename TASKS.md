@@ -110,11 +110,28 @@
 - [ ] Auto-start capture on swing detection
 - [ ] Auto-stop capture on swing completion
 
-### 2.6 Voice Readout
-- [ ] Implement AVSpeechSynthesizer for speed announcement
-- [ ] Announce impact speed immediately after swing processing
-- [ ] Allow user to configure units (mph / km/h / m/s)
-- [ ] Provide audio feedback for state changes (ready, processing)
+### 2.6 Audio Feedback System (Beeps + Voice)
+- [ ] Design audio feedback sound set (distinct tones for each state)
+- [ ] Create/source short beep tones: ready beep, success beep, error beep, warning pulse
+- [ ] Implement `AVAudioPlayer` for low-latency beep playback (<50ms)
+- [ ] Implement `UINotificationFeedbackGenerator` haptic feedback paired with beeps
+- [ ] Implement `AVSpeechSynthesizer` for voice mode alerts ("Ready", "Swing captured — X mph")
+- [ ] Build feedback manager that dispatches correct sound for each state transition:
+  - Player detected → single low tone / "Player detected"
+  - Ready (start pose identified) → double ascending beep / "Ready"
+  - Swing captured → confirmation tone / "Swing captured"
+  - Speed result → triple ascending beep + speech / "[X] miles per hour"
+  - Error: swing not detected → descending error tone / "Swing not detected, try again"
+  - Error: tracking lost → rapid triple warning beep / "Tracking lost, please retry"
+  - Struggling to detect position → slow repeating pulse / "Adjust position"
+  - Calibration complete → rising chime / "Calibration complete"
+- [ ] Add user setting: Beep Mode vs Voice Mode toggle
+- [ ] Configure `AVAudioSession` for AirPods/Bluetooth headphone routing (`.playback` category, `.allowBluetooth`)
+- [ ] Set audio session to duck other audio (`.duckOthers` + `.interruptSpokenAudioAndMixWithOthers`)
+- [ ] Allow user to configure speed readout units (mph / km/h / m/s)
+- [ ] Implement `Core Haptics` (`CHHapticEngine`) for custom haptic patterns synced with audio
+- [ ] Test audio feedback latency with AirPods vs speaker
+- [ ] **Milestone:** Full audio feedback loop working — golfer hears "Ready" → swings → hears speed
 
 ---
 
@@ -146,7 +163,38 @@
 - [ ] Implement confidence scoring for final speed measurement
 - [ ] A/B test accuracy: camera-only vs fused approach
 
-### 3.4 Accuracy Validation
+### 3.4 Lag Angle / Wrist Release Detection
+- [ ] Implement MediaPipe Pose (or Apple Vision `VNDetectHumanBodyPoseRequest`) for body landmark tracking
+- [ ] Extract lead arm landmarks: shoulder, elbow, wrist positions per frame
+- [ ] Combine wrist landmark with club head position from tracking pipeline to derive shaft vector
+- [ ] Calculate lag angle per frame: `angle_between(elbow→wrist vector, wrist→club_head vector)`
+- [ ] Build lag angle curve across entire swing (angle over time/arc position)
+- [ ] Identify key measurement points:
+  - Lag angle at top of backswing
+  - Lag angle at lead arm parallel (downswing)
+  - Lag angle at shaft horizontal
+  - Shaft lean at impact (hands ahead or behind club head)
+- [ ] Calculate **Lag Retention Index (LRI):** ratio of lag at lead-arm-parallel to lag at top
+- [ ] Calculate **Release Point:** degrees of arm rotation before impact where lag begins decreasing rapidly
+- [ ] Detect casting / early release: flag when LRI < 0.4 or release point > 90° before impact
+- [ ] Detect maintained lag: flag when LRI > 0.5 and release point < 50° before impact
+- [ ] Estimate speed loss from early release (compare actual speed to potential based on lag curve)
+- [ ] Build swing replay overlay:
+  - Draw lead arm and club shaft lines on video frames
+  - Color-code by lag quality (green = good retention, yellow = moderate, red = casting)
+  - Show lag angle number in real-time on replay
+  - Mark release point on the swing arc
+- [ ] Display lag metrics in swing detail view:
+  - Lag Angle at key positions (top, arm parallel, impact)
+  - Lag Retention Index (0–1 scale)
+  - Release Point (degrees before impact)
+  - Shaft Lean at Impact (degrees, positive = forward lean)
+  - Casting/Lag verdict with explanation
+- [ ] Add comparative view: show lag metrics side-by-side between two swings
+- [ ] Store lag data in SwiftData alongside speed data per swing
+- [ ] **Milestone:** Swing replay shows arm/shaft overlay with lag angle and casting detection
+
+### 3.5 Accuracy Validation
 - [ ] Test against known-speed reference device (borrow/rent Garmin R10 or similar)
 - [ ] Record 100+ swings at various speeds
 - [ ] Calculate mean absolute error, standard deviation

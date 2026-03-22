@@ -21,7 +21,9 @@ Golf Swing Speed App is an iPhone app that measures golf club head speed using t
 | Computer Vision | Vision framework, Core ML (custom YOLO model) |
 | ML Training | Create ML / PyTorch → Core ML export |
 | Audio Detection | AVAudioEngine / Accelerate framework |
-| Speech Output | AVSpeechSynthesizer |
+| Audio Feedback | AVAudioPlayer (beeps), Core Haptics (CHHapticEngine) |
+| Speech Output | AVSpeechSynthesizer (voice alerts + speed readout) |
+| Body Pose | Vision (VNDetectHumanBodyPoseRequest) or MediaPipe Pose |
 | Data Storage | SwiftData |
 
 ### Core Pipeline
@@ -68,7 +70,9 @@ GolfSwingSpeedApp/
 - **Audio-triggered capture** to reduce battery/thermal impact vs continuous recording
 - **LiDAR for calibration only** (15Hz too slow for real-time tracking) — establishes pixel-to-metre scale
 - **Post-capture processing** for accurate tracking; real-time preview for user feedback only
-- **v1 focuses exclusively on club head speed** — no ball tracking, face angle, or other metrics
+- **v1 scope: club head speed + lag angle analysis** — no ball tracking, face angle, spin, or other launch monitor metrics
+- **Lag angle detection** via MediaPipe/Vision body pose + club shaft tracking. Reports: Lag Retention Index, Release Point, Shaft Lean at Impact, casting detection
+- **Audio feedback system** with two modes: Beep Mode (low-latency tones) and Voice Mode (AVSpeechSynthesizer). Routes to AirPods/Bluetooth automatically
 
 ## Research References
 
