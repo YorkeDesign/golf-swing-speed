@@ -60,16 +60,38 @@
 
 ## Phase 2 — Core Feature Build (Automated Tracking)
 
-### 2.1 LiDAR Calibration
+### 2.1 Scene & Equipment Calibration
+#### Phase 1: Scene Setup
 - [ ] Implement ARKit session for scene scanning
 - [ ] Detect ground plane via ARKit plane detection
 - [ ] Implement raycasting — user taps to set calibration points in 3D space
 - [ ] Calculate real-world distance between calibration points using ARKit
 - [ ] Derive pixels-per-metre scale factor from LiDAR measurements
-- [ ] Auto-detect ball position (if visible) using depth discontinuity
 - [ ] Build calibration UI with visual feedback (AR overlay showing detected surfaces)
 - [ ] Handle LiDAR unavailability gracefully (fallback to manual calibration)
-- [ ] Test accuracy at various distances (1m, 2m, 3m, 4m)
+- [ ] Test accuracy at various distances (1.5m, 2m, 2.5m, 3m)
+
+#### Phase 2: Address Position Analysis (player stands at address with club)
+- [ ] Implement `VNDetectHumanBodyPose3DRequest` for 3D body skeleton (17 joints in metres)
+- [ ] Extract lead arm landmarks: shoulder, elbow, wrist in 3D world coordinates
+- [ ] Detect club head at address via CV model (static = no blur, easier detection)
+- [ ] Get club head 3D position from LiDAR depth at detected location
+- [ ] Detect ball position via CV (white sphere detection) + LiDAR depth confirmation
+- [ ] Calculate **club length**: 3D distance from wrist to club head
+- [ ] Calculate **lie angle**: angle between shaft vector (wrist→club head) and ground plane
+- [ ] Validate lie angle against expected range (56–64°) — flag if wildly off as detection error
+- [ ] Calculate **shaft plane at address**: plane through spine, hands, club head → predicted swing plane
+- [ ] Calculate **arm length**: shoulder→wrist 3D distance (constrains max swing arc radius)
+- [ ] Calculate **ball-to-hands geometry**: 3D vectors defining expected impact zone
+- [ ] Store all derived measurements as calibration constraints for tracking pipeline
+- [ ] Display calibration results to user: club length, lie angle, ball position confirmed
+- [ ] Allow user to select club type (driver, iron, wedge) for context
+
+#### Phase 3: Lock & Capture Mode
+- [ ] Lock calibration data when user confirms
+- [ ] Pass constraints to Kalman filter: club_length radius, swing_plane, max_speed bounds
+- [ ] Camera must remain stationary — detect movement and warn user
+- [ ] **Milestone:** Full calibration pipeline — scene + body + equipment measured and locked
 
 ### 2.2 Club Head Detection (ML Model)
 - [ ] Obtain/prepare training data (AICaddy dataset + additional collection)

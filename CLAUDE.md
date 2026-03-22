@@ -68,7 +68,8 @@ GolfSwingSpeedApp/
 - **240fps at 1080p** is the capture target (max available on iPhone)
 - **Hybrid tracking:** YOLO detection for slow frames + optical flow + Kalman filter for fast frames
 - **Audio-triggered capture** to reduce battery/thermal impact vs continuous recording
-- **LiDAR for calibration only** (15Hz too slow for real-time tracking) — establishes pixel-to-metre scale
+- **LiDAR for calibration only** (60Hz too slow for 240fps tracking) — establishes pixel-to-metre scale
+- **Address position calibration** — while golfer is static at address, combine Apple 3D body pose + LiDAR + CV to measure: club length, lie angle, shaft plane, arm length, ball position. These become Kalman filter constraints during tracking (club head must be within club_length of wrist, approximately in swing plane)
 - **Post-capture processing** for accurate tracking; real-time preview for user feedback only
 - **v1 scope: club head speed + lag angle analysis** — no ball tracking, face angle, spin, or other launch monitor metrics
 - **Lag angle detection** via MediaPipe/Vision body pose + club shaft tracking. Reports: Lag Retention Index, Release Point, Shaft Lean at Impact, casting detection

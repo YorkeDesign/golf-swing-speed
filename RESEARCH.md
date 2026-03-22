@@ -475,19 +475,62 @@ This research maps the full landscape of golf swing speed measurement technology
 - **Measurement API:** ARKit can measure real-world distances between points
 
 #### Calibration Approach for Our App
-1. User positions iPhone front-on to swing area (1.5–3m distance)
+
+##### Phase 1: Scene Calibration
+1. User positions iPhone front-on to swing area (~2–3m distance)
 2. LiDAR scans scene → ARKit identifies ground plane
-3. User places ball (or marks impact zone) → LiDAR measures distance and position
+3. User takes address position with club and ball (if using one)
 4. ARKit provides camera intrinsic parameters + depth-to-camera transform
 5. Establishes pixels-per-metre scale factor at the swing plane
-6. Scale factor accounts for perspective (objects further from camera appear smaller)
-7. Lock calibration during capture — camera must remain stationary
+
+##### Phase 2: Player & Equipment Calibration (NEW — Address Position Analysis)
+While the golfer stands at address (static scene, everything still), the app captures:
+
+6. **3D Body Pose** — `VNDetectHumanBodyPose3DRequest` extracts 17-joint 3D skeleton (shoulder, elbow, wrist in metres)
+7. **Club Head Detection** — CV model detects club head on ground (static = no blur, easier detection). LiDAR provides depth for 3D position
+8. **Ball Detection** — CV detects white sphere on ground (if present). LiDAR confirms 3D position
+9. **Ground Plane** — ARKit plane detection establishes ground reference
+
+From this static snapshot, the app derives:
+
+| Derived Measurement | Calculation | Use |
+|---|---|---|
+| **Club length** | 3D distance: wrist position → club head position | Constrains tracking — club head must be within `club_length` of wrist at all times |
+| **Lie angle** | Angle between shaft vector (wrist→club head) and ground plane | Self-validation (standard lies are 56–64°). Wildly different = detection error |
+| **Shaft plane at address** | Plane defined by spine, hands, and club head | Predicts swing plane — narrows search space during tracking |
+| **Player arm length** | 3D distance: shoulder → wrist | Constrains maximum swing arc radius |
+| **Stance width** | 3D distance between feet/ankle landmarks | Reference measurement for scale validation |
+| **Ball-to-hands geometry** | 3D vectors between ball, hands, and body | Defines expected impact zone geometry |
+| **Player height** | 3D pose head-to-ground distance | Additional scale validation |
+
+##### How This Improves Tracking During the Swing
+These calibration measurements become **constraints for the Kalman filter** during high-speed tracking:
+- Club head search space: constrained to `club_length` radius from wrist (3D pose at 30-60fps gives wrist position)
+- Swing plane: club head should travel approximately in the calibrated plane
+- Maximum speed: bounded by physics for given club length and human biomechanics
+- Impact zone: predicted from ball position and address geometry
+
+This dramatically narrows the search space vs unconstrained detection, improving both speed and accuracy.
+
+##### Geometry at Address (Face-On Camera at ~2m)
+- All key objects (body, hands, club head, ball) are at approximately the **same depth** from camera (~2m)
+- Hands at address sit ~0.25–0.5m out from the pelvis (closer for wedges, further for driver)
+- LiDAR accuracy at 2m: ±2–3cm — consistent across all measurement points since they're at similar depth
+- Club head on ground is at golfer's feet — same depth as body, not further away
+- Ball (4.3cm diameter) at 2m: LiDAR point density ~150–500 pts/m² = 1–3 direct hits. Marginal for LiDAR alone but sufficient when combined with CV detection of white sphere
+
+##### Phase 3: Lock & Capture
+10. Lock all calibration data — camera must remain stationary during capture
+11. Switch to 240fps capture mode when swing detected
+12. Use calibration constraints throughout tracking pipeline
 
 #### Limitations
-- LiDAR at 15Hz is too slow for real-time club tracking during swing
-- Depth accuracy degrades beyond 2m — may affect calibration at larger setup distances
-- Cannot provide real-time depth during 240fps capture (different camera modes)
-- Calibration is only as good as the assumption that the swing happens in a consistent plane
+- LiDAR depth map runs at 60Hz — too slow for real-time club tracking during swing, but ideal for static calibration
+- Depth accuracy degrades beyond 2m — recommend 2–2.5m camera distance
+- Cannot provide real-time LiDAR depth during 240fps capture (different camera modes)
+- 3D body pose (`VNDetectHumanBodyPose3DRequest`) runs at ~30-60fps, not 240fps — but provides wrist position frequently enough to constrain the club head search
+- Club length measurement accuracy: ±3cm on ~100cm club = ±3% — acceptable for constraint use
+- Swing plane is an approximation — the actual club path deviates from the address plane, especially at the top of backswing
 
 ### 4.3 High-FPS Camera on iPhone
 
