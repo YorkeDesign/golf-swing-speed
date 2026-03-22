@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Golf Swing Speed App — Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ios: {
+                            bg: '#000000',
+                            card: '#1C1C1E',
+                            card2: '#2C2C2E',
+                            accent: '#30D158',
+                            blue: '#0A84FF',
+                            red: '#FF453A',
+                            orange: '#FF9F0A',
+                            yellow: '#FFD60A',
+                            gray: '#8E8E93',
+                            gray2: '#636366',
+                            gray3: '#48484A',
+                            label: '#FFFFFF',
+                            label2: '#EBEBF5',
+                            label3: '#EBEBF599',
+                        }
+                    },
+                    fontFamily: {
+                        sf: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Helvetica Neue', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif; }
+        .tab-active { color: #0A84FF; }
+        .tab-inactive { color: #8E8E93; }
+        .screen { display: none; }
+        .screen.active { display: flex; }
+        .ios-blur { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .speed-display { font-feature-settings: 'tnum' 1; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .pulse { animation: pulse 1.5s ease-in-out infinite; }
+        @keyframes recording { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .recording-dot { animation: recording 0.8s ease-in-out infinite; }
+        .swing-arc { stroke-dasharray: 500; stroke-dashoffset: 500; transition: stroke-dashoffset 1.5s ease-out; }
+        .swing-arc.animate { stroke-dashoffset: 0; }
+        /* iPhone frame */
+        .iphone-frame {
+            width: 390px; height: 844px;
+            border-radius: 47px;
+            border: 3px solid #333;
+            overflow: hidden;
+            position: relative;
+            background: #000;
+        }
+        .notch {
+            width: 126px; height: 34px;
+            background: #000;
+            border-radius: 0 0 20px 20px;
+            position: absolute;
+            top: 0; left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+        }
+        .home-indicator {
+            width: 134px; height: 5px;
+            background: #fff;
+            border-radius: 3px;
+            position: absolute;
+            bottom: 8px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center p-4">
+
+    <!-- Header -->
+    <div class="fixed top-4 left-4 text-white text-sm opacity-50 z-50">
+        Golf Swing Speed App — Interactive Prototype<br>
+        <span class="text-xs">Click through screens. Not a real app.</span>
+    </div>
+
+    <!-- iPhone Frame -->
+    <div class="iphone-frame shadow-2xl">
+        <div class="notch"></div>
+        <div class="home-indicator"></div>
+
+        <!-- App Content -->
+        <div id="app" class="w-full h-full flex flex-col bg-ios-bg text-white pt-[50px] pb-[90px] overflow-hidden">
+
+            <!-- ==================== ONBOARDING ==================== -->
+            <div id="screen-onboarding" class="screen active flex-col items-center justify-center px-8 text-center flex-1">
+                <div class="text-6xl mb-6">🏌️</div>
+                <h1 class="text-2xl font-bold mb-2">Golf Swing Speed</h1>
+                <p class="text-ios-gray text-sm mb-8">Measure your club head speed using just your iPhone. No external hardware needed.</p>
+
+                <div class="space-y-3 w-full mb-8">
+                    <div class="flex items-center gap-3 text-left bg-ios-card rounded-xl p-4">
+                        <span class="text-2xl">📸</span>
+                        <div>
+                            <div class="font-semibold text-sm">240fps Camera</div>
+                            <div class="text-xs text-ios-gray">High-speed capture tracks your club</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 text-left bg-ios-card rounded-xl p-4">
+                        <span class="text-2xl">📏</span>
+                        <div>
+                            <div class="font-semibold text-sm">LiDAR Calibration</div>
+                            <div class="text-xs text-ios-gray">Precise real-world measurements</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 text-left bg-ios-card rounded-xl p-4">
+                        <span class="text-2xl">🔊</span>
+                        <div>
+                            <div class="font-semibold text-sm">Voice Feedback</div>
+                            <div class="text-xs text-ios-gray">Hear your speed instantly via AirPods</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="showScreen('screen-permissions')" class="w-full bg-ios-blue text-white font-semibold py-3.5 rounded-xl">
+                    Get Started
+                </button>
+            </div>
+
+            <!-- ==================== PERMISSIONS ==================== -->
+            <div id="screen-permissions" class="screen flex-col items-center justify-center px-8 text-center flex-1">
+                <div class="text-5xl mb-6">🔐</div>
+                <h2 class="text-xl font-bold mb-2">Permissions Required</h2>
+                <p class="text-ios-gray text-sm mb-8">We need access to your camera and microphone to measure swing speed.</p>
+
+                <div class="space-y-4 w-full mb-8">
+                    <div id="perm-camera" class="flex items-center justify-between bg-ios-card rounded-xl p-4">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xl">📷</span>
+                            <span class="text-sm">Camera</span>
+                        </div>
+                        <button onclick="grantPermission('camera')" class="text-ios-blue text-sm font-semibold">Allow</button>
+                    </div>
+                    <div id="perm-mic" class="flex items-center justify-between bg-ios-card rounded-xl p-4">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xl">🎤</span>
+                            <span class="text-sm">Microphone</span>
+                        </div>
+                        <button onclick="grantPermission('mic')" class="text-ios-blue text-sm font-semibold">Allow</button>
+                    </div>
+                </div>
+
+                <button id="btn-continue-perms" onclick="showScreen('screen-capture')" class="w-full bg-ios-gray3 text-ios-gray font-semibold py-3.5 rounded-xl" disabled>
+                    Continue
+                </button>
+            </div>
+
+            <!-- ==================== CAPTURE (Main Screen) ==================== -->
+            <div id="screen-capture" class="screen flex-col flex-1 relative">
+                <!-- Simulated camera view -->
+                <div class="flex-1 bg-gradient-to-b from-green-900/40 to-green-950/60 relative overflow-hidden">
+                    <!-- Fake grass/range background -->
+                    <div class="absolute inset-0 opacity-20" style="background: repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(34,139,34,0.3) 2px, rgba(34,139,34,0.3) 4px);"></div>
+
+                    <!-- Golfer silhouette (simulated) -->
+                    <div id="golfer-silhouette" class="absolute" style="left: 50%; top: 30%; transform: translateX(-50%);">
+                        <svg width="120" height="200" viewBox="0 0 120 200" fill="none">
+                            <!-- Simple golfer figure -->
+                            <circle cx="60" cy="25" r="12" fill="rgba(255,255,255,0.3)"/>
+                            <line x1="60" y1="37" x2="60" y2="100" stroke="rgba(255,255,255,0.3)" stroke-width="3"/>
+                            <line x1="60" y1="55" x2="35" y2="85" stroke="rgba(255,255,255,0.3)" stroke-width="2.5"/>
+                            <line x1="60" y1="55" x2="85" y2="85" stroke="rgba(255,255,255,0.3)" stroke-width="2.5"/>
+                            <line x1="60" y1="100" x2="40" y2="160" stroke="rgba(255,255,255,0.3)" stroke-width="3"/>
+                            <line x1="60" y1="100" x2="80" y2="160" stroke="rgba(255,255,255,0.3)" stroke-width="3"/>
+                            <!-- Club -->
+                            <line id="club-line" x1="35" y1="85" x2="25" y2="155" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+                        </svg>
+                    </div>
+
+                    <!-- State indicator -->
+                    <div id="state-indicator" class="absolute top-4 left-0 right-0 flex justify-center">
+                        <div id="state-badge" class="px-4 py-2 rounded-full text-sm font-semibold ios-blur bg-black/40">
+                            <span id="state-icon">👤</span>
+                            <span id="state-text">Point camera at player</span>
+                        </div>
+                    </div>
+
+                    <!-- Calibration overlay -->
+                    <div id="calibration-badge" class="absolute top-14 left-4 hidden">
+                        <div class="bg-black/60 rounded-lg px-3 py-2 text-xs ios-blur">
+                            <div class="flex items-center gap-1">
+                                <span class="text-ios-accent">✓</span>
+                                <span class="font-semibold">Calibrated</span>
+                            </div>
+                            <div class="text-ios-gray">Scale: 487 px/m</div>
+                        </div>
+                    </div>
+
+                    <!-- Speed result overlay -->
+                    <div id="speed-result" class="absolute inset-0 flex items-center justify-center hidden">
+                        <div class="text-center ios-blur bg-black/50 rounded-3xl px-10 py-8">
+                            <div id="speed-number" class="text-7xl font-bold speed-display">104.2</div>
+                            <div class="text-lg text-ios-gray mt-1">mph</div>
+                            <div id="confidence-badge" class="flex items-center justify-center gap-1 mt-3">
+                                <div class="w-2 h-2 rounded-full bg-ios-accent"></div>
+                                <span class="text-xs text-ios-gray">High confidence</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Processing overlay -->
+                    <div id="processing-overlay" class="absolute inset-0 flex items-center justify-center hidden">
+                        <div class="text-center">
+                            <div class="w-12 h-12 border-4 border-ios-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                            <div id="processing-text" class="text-sm text-white">Analysing swing...</div>
+                            <div id="processing-detail" class="text-xs text-ios-gray mt-1">Tracking club head</div>
+                            <div class="w-48 h-1 bg-ios-gray3 rounded-full mt-4 mx-auto overflow-hidden">
+                                <div id="progress-bar" class="h-full bg-ios-blue rounded-full transition-all duration-1000" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom controls -->
+                <div class="bg-black/80 ios-blur px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <!-- Calibrate button -->
+                        <button onclick="showScreen('screen-calibrate')" class="flex flex-col items-center gap-1">
+                            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10" stroke-width="1.5"/>
+                                <circle cx="12" cy="12" r="3" stroke-width="1.5"/>
+                                <line x1="12" y1="2" x2="12" y2="6" stroke-width="1.5"/>
+                                <line x1="12" y1="18" x2="12" y2="22" stroke-width="1.5"/>
+                                <line x1="2" y1="12" x2="6" y2="12" stroke-width="1.5"/>
+                                <line x1="18" y1="12" x2="22" y2="12" stroke-width="1.5"/>
+                            </svg>
+                            <span class="text-[10px] text-ios-gray">Calibrate</span>
+                        </button>
+
+                        <!-- Record button -->
+                        <button id="record-btn" onclick="simulateSwing()" class="w-[72px] h-[72px] rounded-full border-4 border-white flex items-center justify-center">
+                            <div id="record-inner" class="w-[58px] h-[58px] rounded-full bg-white transition-all duration-200"></div>
+                        </button>
+
+                        <!-- Club selector -->
+                        <button onclick="cycleClub()" class="flex flex-col items-center gap-1">
+                            <span class="text-2xl">🏌️</span>
+                            <span id="club-label" class="text-[10px] text-ios-gray">Driver</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== CALIBRATION ==================== -->
+            <div id="screen-calibrate" class="screen flex-col flex-1">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-ios-gray3">
+                    <button onclick="showScreen('screen-capture')" class="text-ios-blue text-sm">Cancel</button>
+                    <span class="font-semibold text-sm">Calibrate</span>
+                    <button onclick="resetCalibration()" class="text-ios-blue text-sm">Reset</button>
+                </div>
+
+                <div class="flex-1 px-4 py-4 flex flex-col">
+                    <!-- Instruction -->
+                    <div id="cal-instruction" class="text-center mb-4">
+                        <div class="flex items-center justify-center gap-2 mb-2">
+                            <div class="w-6 h-6 rounded-full bg-ios-blue flex items-center justify-center text-xs font-bold">1</div>
+                            <span class="font-semibold text-sm">Tap first reference point</span>
+                        </div>
+                        <p class="text-xs text-ios-gray">Tap a point on the ground you can measure from</p>
+                    </div>
+
+                    <!-- Calibration canvas -->
+                    <div id="cal-canvas" class="flex-1 bg-ios-card rounded-2xl relative overflow-hidden cursor-crosshair" onclick="calibrationTap(event)">
+                        <div class="absolute inset-0 flex items-center justify-center text-ios-gray2 text-sm">
+                            Camera Preview
+                        </div>
+                        <!-- Markers will be added dynamically -->
+                        <svg id="cal-svg" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+                    </div>
+
+                    <!-- Distance input (hidden initially) -->
+                    <div id="cal-distance" class="mt-4 hidden">
+                        <label class="text-sm text-ios-gray mb-2 block">Distance between points</label>
+                        <div class="flex gap-2">
+                            <input id="cal-distance-input" type="number" value="1.0" step="0.1" class="flex-1 bg-ios-card rounded-xl px-4 py-3 text-white text-sm outline-none focus:ring-2 focus:ring-ios-blue">
+                            <select id="cal-unit" class="bg-ios-card rounded-xl px-4 py-3 text-white text-sm outline-none">
+                                <option value="m">metres</option>
+                                <option value="ft">feet</option>
+                                <option value="cm">cm</option>
+                            </select>
+                        </div>
+                        <button onclick="confirmCalDistance()" class="w-full mt-3 bg-ios-blue text-white font-semibold py-3 rounded-xl text-sm">
+                            Confirm Distance
+                        </button>
+                    </div>
+
+                    <!-- Done button -->
+                    <div id="cal-done" class="mt-4 hidden">
+                        <button onclick="finishCalibration()" class="w-full bg-ios-accent text-black font-semibold py-3.5 rounded-xl">
+                            Done
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== HISTORY ==================== -->
+            <div id="screen-history" class="screen flex-col flex-1">
+                <div class="px-4 pt-4 pb-2">
+                    <h1 class="text-2xl font-bold">History</h1>
+                </div>
+                <div class="flex-1 overflow-auto px-4" id="history-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- ==================== SWING DETAIL ==================== -->
+            <div id="screen-detail" class="screen flex-col flex-1 overflow-auto">
+                <div class="flex items-center px-4 py-3 border-b border-ios-gray3">
+                    <button onclick="showScreen('screen-history')" class="text-ios-blue text-sm">← Back</button>
+                    <span class="flex-1 text-center font-semibold text-sm">Swing Detail</span>
+                    <div class="w-12"></div>
+                </div>
+                <div class="px-4 py-4 space-y-4" id="detail-content">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- ==================== SETTINGS ==================== -->
+            <div id="screen-settings" class="screen flex-col flex-1 overflow-auto">
+                <div class="px-4 pt-4 pb-2">
+                    <h1 class="text-2xl font-bold">Settings</h1>
+                </div>
+                <div class="px-4 space-y-6 pb-8">
+                    <!-- Measurement -->
+                    <div>
+                        <h3 class="text-xs text-ios-gray uppercase tracking-wider mb-2 px-1">Measurement</h3>
+                        <div class="bg-ios-card rounded-xl overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-3.5 border-b border-ios-gray3">
+                                <span class="text-sm">Speed Units</span>
+                                <select id="setting-units" class="bg-transparent text-ios-blue text-sm text-right outline-none" onchange="updateSetting('units')">
+                                    <option value="mph" selected>mph</option>
+                                    <option value="km/h">km/h</option>
+                                    <option value="m/s">m/s</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center justify-between px-4 py-3.5">
+                                <span class="text-sm">Show Confidence</span>
+                                <div class="w-12 h-7 bg-ios-accent rounded-full relative cursor-pointer" onclick="toggleSwitch(this)">
+                                    <div class="w-5.5 h-5.5 bg-white rounded-full absolute top-[3px] right-[3px] shadow transition-all"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Audio -->
+                    <div>
+                        <h3 class="text-xs text-ios-gray uppercase tracking-wider mb-2 px-1">Audio Feedback</h3>
+                        <div class="bg-ios-card rounded-xl overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-3.5 border-b border-ios-gray3">
+                                <span class="text-sm">Feedback Mode</span>
+                                <select id="setting-audio" class="bg-transparent text-ios-blue text-sm text-right outline-none">
+                                    <option value="beep" selected>Beep</option>
+                                    <option value="voice">Voice</option>
+                                    <option value="off">Off</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center justify-between px-4 py-3.5">
+                                <span class="text-sm">Haptic Feedback</span>
+                                <div class="w-12 h-7 bg-ios-accent rounded-full relative cursor-pointer" onclick="toggleSwitch(this)">
+                                    <div class="w-5.5 h-5.5 bg-white rounded-full absolute top-[3px] right-[3px] shadow transition-all"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Capture -->
+                    <div>
+                        <h3 class="text-xs text-ios-gray uppercase tracking-wider mb-2 px-1">Capture</h3>
+                        <div class="bg-ios-card rounded-xl overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-3.5 border-b border-ios-gray3">
+                                <span class="text-sm">Auto-Capture</span>
+                                <div class="w-12 h-7 bg-ios-accent rounded-full relative cursor-pointer" onclick="toggleSwitch(this)">
+                                    <div class="w-5.5 h-5.5 bg-white rounded-full absolute top-[3px] right-[3px] shadow transition-all"></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between px-4 py-3.5 border-b border-ios-gray3">
+                                <span class="text-sm">Default Club</span>
+                                <select class="bg-transparent text-ios-blue text-sm text-right outline-none">
+                                    <option selected>Driver</option>
+                                    <option>3-Wood</option>
+                                    <option>7 Iron</option>
+                                    <option>PW</option>
+                                    <option>Speed Stick</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center justify-between px-4 py-3.5">
+                                <span class="text-sm">Save Video Clips</span>
+                                <select class="bg-transparent text-ios-blue text-sm text-right outline-none">
+                                    <option>Always</option>
+                                    <option selected>Ask</option>
+                                    <option>Never</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- About -->
+                    <div>
+                        <h3 class="text-xs text-ios-gray uppercase tracking-wider mb-2 px-1">About</h3>
+                        <div class="bg-ios-card rounded-xl overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-3.5 border-b border-ios-gray3">
+                                <span class="text-sm">Version</span>
+                                <span class="text-sm text-ios-gray">0.01.01</span>
+                            </div>
+                            <div class="flex items-center justify-between px-4 py-3.5">
+                                <span class="text-sm">Camera FPS</span>
+                                <span class="text-sm text-ios-gray">240fps @ 1080p</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== TAB BAR ==================== -->
+            <div id="tab-bar" class="absolute bottom-0 left-0 right-0 bg-black/80 ios-blur border-t border-ios-gray3 px-6 pt-2 pb-8 hidden">
+                <div class="flex justify-around">
+                    <button onclick="switchTab('capture')" id="tab-capture" class="flex flex-col items-center gap-0.5 tab-active">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4z"/><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+                        <span class="text-[10px]">Capture</span>
+                    </button>
+                    <button onclick="switchTab('history')" id="tab-history" class="flex flex-col items-center gap-0.5 tab-inactive">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0013 21a9 9 0 000-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+                        <span class="text-[10px]">History</span>
+                    </button>
+                    <button onclick="switchTab('settings')" id="tab-settings" class="flex flex-col items-center gap-0.5 tab-inactive">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1115.6 12 3.611 3.611 0 0112 15.6z"/></svg>
+                        <span class="text-[10px]">Settings</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== STATE ====================
+        let currentScreen = 'screen-onboarding';
+        let currentTab = 'capture';
+        let permissions = { camera: false, mic: false };
+        let calStep = 0;
+        let calPoints = [];
+        let clubs = ['Driver', '3-Wood', 'Hybrid', '7 Iron', 'PW', 'Speed Stick'];
+        let clubIndex = 0;
+        let swingState = 'idle';
+
+        // Mock swing history
+        const mockSwings = [
+            { id: 1, speed: 108.3, confidence: 0.85, club: 'Driver', date: 'Today', time: '2:34 PM', lri: 0.62, release: 38, shaftLean: 12, casting: false, peak: 112.1, duration: 1.18 },
+            { id: 2, speed: 105.7, confidence: 0.91, club: 'Driver', date: 'Today', time: '2:33 PM', lri: 0.58, release: 42, shaftLean: 10, casting: false, peak: 109.4, duration: 1.21 },
+            { id: 3, speed: 101.2, confidence: 0.72, club: 'Driver', date: 'Today', time: '2:32 PM', lri: 0.35, release: 95, shaftLean: 2, casting: true, peak: 104.8, duration: 1.15 },
+            { id: 4, speed: 89.4, confidence: 0.88, club: '7 Iron', date: 'Today', time: '2:28 PM', lri: 0.55, release: 45, shaftLean: 15, casting: false, peak: 92.1, duration: 1.05 },
+            { id: 5, speed: 86.1, confidence: 0.79, club: '7 Iron', date: 'Today', time: '2:27 PM', lri: 0.31, release: 102, shaftLean: -3, casting: true, peak: 89.3, duration: 1.08 },
+            { id: 6, speed: 112.5, confidence: 0.93, club: 'Speed Stick', date: 'Yesterday', time: '4:15 PM', lri: 0.68, release: 32, shaftLean: 8, casting: false, peak: 118.2, duration: 1.12 },
+            { id: 7, speed: 109.8, confidence: 0.87, club: 'Speed Stick', date: 'Yesterday', time: '4:14 PM', lri: 0.64, release: 35, shaftLean: 7, casting: false, peak: 115.6, duration: 1.14 },
+        ];
+
+        // ==================== NAVIGATION ====================
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            currentScreen = id;
+
+            const tabBar = document.getElementById('tab-bar');
+            const mainScreens = ['screen-capture', 'screen-history', 'screen-settings'];
+            tabBar.classList.toggle('hidden', !mainScreens.includes(id));
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            ['capture', 'history', 'settings'].forEach(t => {
+                document.getElementById(`tab-${t}`).className = `flex flex-col items-center gap-0.5 ${t === tab ? 'tab-active' : 'tab-inactive'}`;
+            });
+            showScreen(`screen-${tab}`);
+            if (tab === 'history') populateHistory();
+        }
+
+        // ==================== PERMISSIONS ====================
+        function grantPermission(type) {
+            permissions[type] = true;
+            const el = document.getElementById(`perm-${type === 'camera' ? 'camera' : 'mic'}`);
+            el.querySelector('button').textContent = '✓ Granted';
+            el.querySelector('button').className = 'text-ios-accent text-sm font-semibold';
+
+            if (permissions.camera && permissions.mic) {
+                const btn = document.getElementById('btn-continue-perms');
+                btn.disabled = false;
+                btn.className = 'w-full bg-ios-blue text-white font-semibold py-3.5 rounded-xl';
+            }
+        }
+
+        // ==================== CALIBRATION ====================
+        function calibrationTap(e) {
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            if (calStep === 0) {
+                calPoints.push({x, y});
+                addCalMarker(x, y, '1', '#0A84FF');
+                calStep = 1;
+                document.getElementById('cal-instruction').innerHTML = `
+                    <div class="flex items-center justify-center gap-2 mb-2">
+                        <div class="w-6 h-6 rounded-full bg-ios-blue flex items-center justify-center text-xs font-bold">2</div>
+                        <span class="font-semibold text-sm">Tap second reference point</span>
+                    </div>
+                    <p class="text-xs text-ios-gray">Tap the other end of your known distance</p>`;
+            } else if (calStep === 1) {
+                calPoints.push({x, y});
+                addCalMarker(x, y, '2', '#0A84FF');
+                addCalLine(calPoints[0], calPoints[1]);
+                calStep = 2;
+                document.getElementById('cal-instruction').innerHTML = `
+                    <div class="flex items-center justify-center gap-2 mb-2">
+                        <div class="w-6 h-6 rounded-full bg-ios-blue flex items-center justify-center text-xs font-bold">3</div>
+                        <span class="font-semibold text-sm">Enter the distance</span>
+                    </div>`;
+                document.getElementById('cal-distance').classList.remove('hidden');
+            } else if (calStep === 3) {
+                calPoints.push({x, y});
+                addCalMarker(x, y, '✕', '#FF453A');
+                calStep = 4;
+                document.getElementById('cal-instruction').innerHTML = `
+                    <div class="flex items-center justify-center gap-2 mb-2">
+                        <span class="text-ios-accent text-lg">✓</span>
+                        <span class="font-semibold text-sm text-ios-accent">Calibration complete</span>
+                    </div>`;
+                document.getElementById('cal-done').classList.remove('hidden');
+            }
+        }
+
+        function confirmCalDistance() {
+            calStep = 3;
+            document.getElementById('cal-distance').classList.add('hidden');
+            document.getElementById('cal-instruction').innerHTML = `
+                <div class="flex items-center justify-center gap-2 mb-2">
+                    <div class="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center text-xs font-bold">✕</div>
+                    <span class="font-semibold text-sm">Tap the impact zone</span>
+                </div>
+                <p class="text-xs text-ios-gray">Tap where the ball is or where the club hits the ground</p>`;
+        }
+
+        function finishCalibration() {
+            document.getElementById('calibration-badge').classList.remove('hidden');
+            showScreen('screen-capture');
+            calStep = 0;
+            calPoints = [];
+        }
+
+        function resetCalibration() {
+            calStep = 0;
+            calPoints = [];
+            document.getElementById('cal-svg').innerHTML = '';
+            document.getElementById('cal-distance').classList.add('hidden');
+            document.getElementById('cal-done').classList.add('hidden');
+            document.getElementById('cal-instruction').innerHTML = `
+                <div class="flex items-center justify-center gap-2 mb-2">
+                    <div class="w-6 h-6 rounded-full bg-ios-blue flex items-center justify-center text-xs font-bold">1</div>
+                    <span class="font-semibold text-sm">Tap first reference point</span>
+                </div>
+                <p class="text-xs text-ios-gray">Tap a point on the ground you can measure from</p>`;
+        }
+
+        function addCalMarker(x, y, label, color) {
+            const svg = document.getElementById('cal-svg');
+            svg.innerHTML += `
+                <circle cx="${x}" cy="${y}" r="16" fill="${color}33" stroke="${color}" stroke-width="2"/>
+                <text x="${x}" y="${y + 5}" text-anchor="middle" fill="${color}" font-size="12" font-weight="bold">${label}</text>`;
+        }
+
+        function addCalLine(p1, p2) {
+            const svg = document.getElementById('cal-svg');
+            svg.innerHTML += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="#0A84FF66" stroke-width="2" stroke-dasharray="8 4"/>`;
+        }
+
+        // ==================== SWING SIMULATION ====================
+        async function simulateSwing() {
+            if (swingState !== 'idle') return;
+
+            // Phase 1: Player detected
+            swingState = 'detected';
+            updateState('👤', 'Player detected', '#FFD60A');
+            await sleep(800);
+
+            // Phase 2: Ready
+            swingState = 'ready';
+            updateState('✓', 'READY — Swing when ready', '#30D158');
+            await sleep(1200);
+
+            // Phase 3: Recording
+            swingState = 'recording';
+            updateState('●', 'Capturing...', '#FF453A');
+            document.getElementById('state-icon').classList.add('recording-dot');
+            const recordBtn = document.getElementById('record-inner');
+            recordBtn.classList.remove('rounded-full');
+            recordBtn.classList.add('rounded-lg');
+            recordBtn.style.width = '30px';
+            recordBtn.style.height = '30px';
+            recordBtn.style.background = '#FF453A';
+            await sleep(1500);
+
+            // Phase 4: Processing
+            swingState = 'processing';
+            document.getElementById('state-icon').classList.remove('recording-dot');
+            recordBtn.classList.add('rounded-full');
+            recordBtn.classList.remove('rounded-lg');
+            recordBtn.style.width = '58px';
+            recordBtn.style.height = '58px';
+            recordBtn.style.background = '#fff';
+            document.getElementById('processing-overlay').classList.remove('hidden');
+
+            const phases = [
+                ['Detecting swing phases...', 'Pass 1: motion analysis', 15],
+                ['Analysing body pose...', '3D skeleton extraction', 35],
+                ['Tracking club head...', 'YOLO + Kalman filter', 60],
+                ['Calculating speed...', 'Frame-to-frame + blur analysis', 80],
+                ['Analysing lag...', 'Wrist release detection', 95],
+            ];
+
+            for (const [text, detail, progress] of phases) {
+                document.getElementById('processing-text').textContent = text;
+                document.getElementById('processing-detail').textContent = detail;
+                document.getElementById('progress-bar').style.width = progress + '%';
+                await sleep(600);
+            }
+
+            document.getElementById('progress-bar').style.width = '100%';
+            await sleep(300);
+            document.getElementById('processing-overlay').classList.add('hidden');
+
+            // Phase 5: Result
+            swingState = 'result';
+            const speed = (95 + Math.random() * 20).toFixed(1);
+            document.getElementById('speed-number').textContent = speed;
+            document.getElementById('speed-result').classList.remove('hidden');
+            updateState('✓', `${speed} mph`, '#30D158');
+            await sleep(4000);
+
+            // Reset
+            document.getElementById('speed-result').classList.add('hidden');
+            updateState('👤', 'Point camera at player', '#8E8E93');
+            swingState = 'idle';
+        }
+
+        function updateState(icon, text, color) {
+            document.getElementById('state-icon').textContent = icon;
+            document.getElementById('state-text').textContent = text;
+            document.getElementById('state-badge').style.borderColor = color;
+        }
+
+        // ==================== CLUB SELECTOR ====================
+        function cycleClub() {
+            clubIndex = (clubIndex + 1) % clubs.length;
+            document.getElementById('club-label').textContent = clubs[clubIndex];
+        }
+
+        // ==================== HISTORY ====================
+        function populateHistory() {
+            const list = document.getElementById('history-list');
+            let lastDate = '';
+            let html = '';
+
+            for (const swing of mockSwings) {
+                if (swing.date !== lastDate) {
+                    html += `<div class="text-xs text-ios-gray uppercase tracking-wider mt-4 mb-2 px-1">${swing.date}</div>`;
+                    lastDate = swing.date;
+                }
+
+                const confColor = swing.confidence > 0.7 ? '#30D158' : swing.confidence > 0.4 ? '#FFD60A' : '#FF453A';
+
+                html += `
+                <button onclick="showDetail(${swing.id})" class="w-full bg-ios-card rounded-xl p-4 mb-2 flex items-center text-left">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold">${swing.club}</span>
+                            <span class="text-xl font-bold speed-display">${swing.speed} <span class="text-xs text-ios-gray font-normal">mph</span></span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-xs text-ios-gray">${swing.time}</span>
+                            ${swing.casting ? '<span class="text-[10px] bg-ios-orange/20 text-ios-orange px-1.5 py-0.5 rounded">Casting</span>' : '<span class="text-[10px] bg-ios-accent/20 text-ios-accent px-1.5 py-0.5 rounded">Good lag</span>'}
+                        </div>
+                    </div>
+                    <div class="w-2.5 h-2.5 rounded-full ml-3" style="background: ${confColor}"></div>
+                    <svg class="w-4 h-4 text-ios-gray2 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </button>`;
+            }
+
+            list.innerHTML = html;
+        }
+
+        function showDetail(id) {
+            const swing = mockSwings.find(s => s.id === id);
+            if (!swing) return;
+
+            const confColor = swing.confidence > 0.7 ? '#30D158' : '#FFD60A';
+            const confLabel = swing.confidence > 0.7 ? 'High confidence' : 'Medium confidence';
+
+            document.getElementById('detail-content').innerHTML = `
+                <!-- Speed card -->
+                <div class="bg-ios-card rounded-2xl p-6 text-center">
+                    <div class="text-6xl font-bold speed-display">${swing.speed}</div>
+                    <div class="text-sm text-ios-gray mt-1">mph at impact</div>
+                    <div class="flex items-center justify-center gap-4 mt-3 text-xs">
+                        <span class="text-ios-gray">${swing.club}</span>
+                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:${confColor}"></span>${confLabel}</span>
+                    </div>
+                </div>
+
+                <!-- Info -->
+                <div class="bg-ios-card rounded-2xl p-4 space-y-3">
+                    <div class="flex justify-between text-sm"><span class="text-ios-gray">Peak Speed</span><span>${swing.peak} mph</span></div>
+                    <div class="flex justify-between text-sm"><span class="text-ios-gray">Duration</span><span>${swing.duration}s</span></div>
+                    <div class="flex justify-between text-sm"><span class="text-ios-gray">Date</span><span>${swing.date} ${swing.time}</span></div>
+                </div>
+
+                <!-- Speed curve (simulated) -->
+                <div class="bg-ios-card rounded-2xl p-4">
+                    <div class="text-sm font-semibold mb-3">Speed Curve</div>
+                    <svg viewBox="0 0 300 100" class="w-full">
+                        <defs>
+                            <linearGradient id="speedGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#0A84FF" stop-opacity="0.3"/>
+                                <stop offset="100%" stop-color="#0A84FF" stop-opacity="0"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M0,80 C30,78 60,70 90,55 C120,40 150,15 180,10 C195,12 210,20 225,35 C250,55 275,70 300,75" fill="url(#speedGrad)"/>
+                        <path d="M0,80 C30,78 60,70 90,55 C120,40 150,15 180,10 C195,12 210,20 225,35 C250,55 275,70 300,75" fill="none" stroke="#0A84FF" stroke-width="2"/>
+                        <circle cx="180" cy="10" r="4" fill="#FF453A"/>
+                        <text x="180" y="6" text-anchor="middle" fill="#FF453A" font-size="7">IMPACT</text>
+                    </svg>
+                </div>
+
+                <!-- Lag analysis (Premium) -->
+                <div class="bg-ios-card rounded-2xl p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-sm font-semibold">Lag Analysis</span>
+                        <span class="text-[9px] font-bold bg-ios-blue px-2 py-0.5 rounded-full">PREMIUM</span>
+                    </div>
+                    <div class="space-y-2.5">
+                        <div class="flex justify-between text-sm"><span class="text-ios-gray">Lag Retention Index</span><span class="${swing.casting ? 'text-ios-orange' : 'text-ios-accent'}">${swing.lri.toFixed(2)}</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-ios-gray">Release Point</span><span>${swing.release}° before impact</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-ios-gray">Shaft Lean at Impact</span><span>${swing.shaftLean > 0 ? '+' : ''}${swing.shaftLean}°</span></div>
+                        <div class="mt-2 flex items-center gap-2 text-sm ${swing.casting ? 'text-ios-orange' : 'text-ios-accent'}">
+                            ${swing.casting ? '⚠️ Early release detected — estimated 5-8 mph speed loss' : '✅ Good lag retention'}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Swing replay placeholder -->
+                <div class="bg-ios-card rounded-2xl p-4">
+                    <div class="text-sm font-semibold mb-3">Swing Replay</div>
+                    <div class="aspect-video bg-ios-card2 rounded-xl flex items-center justify-center">
+                        <div class="text-center text-ios-gray2">
+                            <svg class="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            <div class="text-xs">Slow-motion replay with lag overlay</div>
+                        </div>
+                    </div>
+                </div>`;
+
+            showScreen('screen-detail');
+        }
+
+        // ==================== SETTINGS HELPERS ====================
+        function toggleSwitch(el) {
+            const isOn = el.classList.contains('bg-ios-accent');
+            if (isOn) {
+                el.classList.remove('bg-ios-accent');
+                el.classList.add('bg-ios-gray3');
+                el.querySelector('div').style.right = 'auto';
+                el.querySelector('div').style.left = '3px';
+            } else {
+                el.classList.add('bg-ios-accent');
+                el.classList.remove('bg-ios-gray3');
+                el.querySelector('div').style.left = 'auto';
+                el.querySelector('div').style.right = '3px';
+            }
+        }
+
+        // ==================== UTILITIES ====================
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        // Init
+        populateHistory();
+    </script>
+</body>
+</html>
