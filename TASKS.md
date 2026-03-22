@@ -42,9 +42,10 @@
 - [ ] Allow recalibration without restarting
 
 ### 1.4 Basic Motion Detection
-- [ ] Implement frame differencing to detect motion onset
-- [ ] Set motion threshold for swing start detection
-- [ ] Detect motion cessation for swing end
+- [x] Implement frame differencing to detect motion onset (`MotionDetector.swift`)
+- [x] Set motion threshold for swing start detection (`SwingStateMachine.swift`)
+- [x] Detect motion cessation for swing end (`SwingStateMachine.swift`)
+- [x] Motion heatmap and centroid detection (`MotionDetector.swift`)
 - [ ] Visualize motion regions on preview (debug overlay)
 - [ ] Test with real golf swings to tune thresholds
 
@@ -98,39 +99,47 @@
 - [ ] Include motion-blurred club head images in training set
 - [ ] Train YOLOv8 or similar model for club head detection
 - [ ] Export to Core ML format (.mlmodel)
-- [ ] Integrate Core ML model into app
+- [x] Integrate Core ML model wrapper into app (`ClubHeadDetector` actor in `TrackingPipeline.swift`)
 - [ ] Benchmark inference speed on target devices (iPhone 14 Pro, 15 Pro, 16 Pro)
 - [ ] Test detection accuracy across lighting conditions
-- [ ] Implement confidence thresholding — skip low-confidence detections
+- [x] Implement confidence thresholding — skip low-confidence detections
 
 ### 2.3 Club Head Tracking Pipeline
-- [ ] Implement YOLO detection for initial club head location (slow frames)
-- [ ] Implement optical flow (Lucas-Kanade) for frame-to-frame tracking
-- [ ] Implement Kalman filter for motion prediction and smoothing
-- [ ] Build hybrid pipeline: YOLO detection → optical flow tracking → Kalman prediction
-- [ ] Handle detection failures (club lost due to blur/occlusion) with Kalman prediction
-- [ ] Re-acquire club head after occlusion using YOLO
-- [ ] Output: array of (x, y, timestamp, confidence) per frame
+- [x] Implement YOLO detection for initial club head location (`TrackingPipeline.swift`)
+- [x] Implement Apple Vision VNTrackObjectRequest for frame-to-frame tracking
+- [x] Implement Kalman filter for motion prediction and smoothing (`KalmanFilter.swift`)
+- [x] Build hybrid pipeline: YOLO detection → Vision tracking → Kalman prediction
+- [x] Handle detection failures (club lost due to blur/occlusion) with Kalman prediction
+- [x] Re-acquire club head after occlusion using YOLO (periodic redetection)
+- [x] Club length constraint: club head must be within calibrated radius of wrist
+- [x] Output: array of TrackedPosition (position2D, position3D, timestamp, confidence, source) per frame
+- [ ] Test tracking accuracy with real swing footage
 
 ### 2.4 Speed Calculation Pipeline
-- [ ] Convert tracked positions to real-world coordinates using calibration
-- [ ] Calculate frame-to-frame speed at each tracked point
-- [ ] Apply Kalman smoothing to speed curve
-- [ ] Identify impact position from calibrated zone
-- [ ] Extract speed at impact frame(s)
+- [x] Convert tracked positions to real-world coordinates using calibration (`SpeedCalculator.swift`)
+- [x] Calculate frame-to-frame speed using ACTUAL timestamps (never assume 1/240s)
+- [x] Apply exponential smoothing to speed curve
+- [x] Identify impact position from calibrated zone or peak speed
+- [x] Extract speed at impact frame(s)
+- [x] Motion blur velocity estimation as supplementary signal
+- [x] Fused speed estimate (tracking + blur, weighted by confidence)
+- [x] Confidence scoring per measurement
+- [x] Build speed curve data structure (SpeedProfile model)
+- [x] Post-capture analysis engine orchestrating full pipeline (`PostCaptureAnalysisEngine.swift`)
 - [ ] Handle perspective correction — adjust scale factor based on estimated depth
-- [ ] Build speed curve data structure (SpeedProfile model)
-- [ ] **Milestone:** First automated club head speed measurement
+- [ ] **Milestone:** First automated club head speed measurement (requires device testing)
 
 ### 2.5 Auto Swing Detection (Motion-Based)
-- [ ] Implement swing state machine (IDLE → SETUP → READY → SWING → COMPLETE → RESULT)
-- [ ] Use background subtraction (MOG2) for motion detection
-- [ ] Implement stillness detection for READY state (low frame difference for N frames)
-- [ ] Implement motion onset detection for SWING state
-- [ ] Implement swing completion detection (velocity drop + follow-through)
-- [ ] Distinguish real swings from practice waggles (duration + speed thresholds)
-- [ ] Auto-start capture on swing detection
+- [x] Implement swing state machine (`SwingStateMachine.swift`)
+- [x] State transitions: IDLE → PLAYER_DETECTED → READY → SWING_IN_PROGRESS → SWING_COMPLETE → PROCESSING → RESULT
+- [x] Implement stillness detection for READY state (low frame difference for N frames)
+- [x] Implement motion onset detection for SWING state
+- [x] Implement swing completion detection (motion cessation after minimum duration)
+- [x] Distinguish real swings from practice waggles (duration + speed thresholds)
+- [x] Callbacks for onStateChange, onSwingStart, onSwingComplete
+- [ ] Auto-start 240fps capture on swing detection
 - [ ] Auto-stop capture on swing completion
+- [ ] Test with real golf swings to tune thresholds
 
 ### 2.6 Audio Feedback System (Beeps + Voice)
 - [ ] Design audio feedback sound set (distinct tones for each state)
@@ -160,71 +169,63 @@
 ## Phase 3 — Accuracy & Audio Enhancement
 
 ### 3.1 Motion Blur Analysis
-- [ ] Research and implement blur streak length estimation
-- [ ] Calculate speed from blur length (speed = blur_length / exposure_time)
+- [x] Speed calculation from blur length formula (`SpeedCalculator.speedFromMotionBlur`)
+- [x] Fused speed estimate combining tracking + blur with confidence weighting (`SpeedCalculator.fusedSpeed`)
+- [ ] Implement blur streak length detection from frame pixel data
 - [ ] Use blur direction to validate tracking direction
-- [ ] Combine blur-based speed with frame-to-frame speed for weighted estimate
 - [ ] Test accuracy improvement vs frame-to-frame only
 
 ### 3.2 Audio Swing Detection
-- [ ] Implement AVAudioEngine for real-time audio monitoring
-- [ ] Build audio onset detector (energy thresholding + spectral analysis)
-- [ ] Characterize golf swing whoosh sound signature (frequency range, amplitude pattern)
-- [ ] Detect swing onset from audio — trigger 240fps capture
-- [ ] Detect impact sound (sharp transient) for precise impact timing
-- [ ] Detect swing completion — audio returns to ambient baseline
-- [ ] Implement noise filtering to distinguish wind from whoosh
+- [x] Implement AVAudioEngine real-time audio monitoring (`SwingAudioDetector.swift`)
+- [x] Build audio onset detector (RMS energy thresholding)
+- [x] Rising energy detection for whoosh characterisation
+- [x] Detect swing onset from audio — callback to trigger 240fps capture
+- [x] Detect impact sound (rapid onset transient) with timestamp
+- [x] Detect swing completion — energy decay to ambient baseline
+- [x] Ambient baseline tracking (slow-moving average)
+- [x] State machine: monitoring → swingDetected → impactDetected → swingEnding
+- [ ] Spectral analysis (FFT) to distinguish wind from whoosh
+- [ ] CoreML classifier for golf-specific sound events
 - [ ] Test in various environments (range, backyard, indoor)
 - [ ] Measure power savings vs continuous video monitoring
-- [ ] **Milestone:** Audio-triggered capture working reliably
+- [ ] **Milestone:** Audio-triggered capture working reliably (requires device testing)
 
 ### 3.3 Sensor Fusion
-- [ ] Combine camera tracking + audio timing + LiDAR calibration
+- [x] Camera tracking + audio impact timing combined in analysis pipeline
+- [x] Confidence scoring combining tracking + blur agreement (`SpeedCalculator.confidenceScore`)
 - [ ] Use IMU (accelerometer) to detect/compensate for camera movement
-- [ ] Weight speed estimates by confidence (high confidence tracking > blur estimate)
-- [ ] Implement confidence scoring for final speed measurement
 - [ ] A/B test accuracy: camera-only vs fused approach
 
 ### 3.4 Lag Angle / Wrist Release Detection
-- [ ] Implement MediaPipe Pose (or Apple Vision `VNDetectHumanBodyPoseRequest`) for body landmark tracking
-- [ ] Extract lead arm landmarks: shoulder, elbow, wrist positions per frame
-- [ ] Combine wrist landmark with club head position from tracking pipeline to derive shaft vector
-- [ ] Calculate lag angle per frame: `angle_between(elbow→wrist vector, wrist→club_head vector)`
-- [ ] Build lag angle curve across entire swing (angle over time/arc position)
-- [ ] Identify key measurement points:
-  - Lag angle at top of backswing
-  - Lag angle at lead arm parallel (downswing)
-  - Lag angle at shaft horizontal
-  - Shaft lean at impact (hands ahead or behind club head)
-- [ ] Calculate **Lag Retention Index (LRI):** ratio of lag at lead-arm-parallel to lag at top
-- [ ] Calculate **Release Point:** degrees of arm rotation before impact where lag begins decreasing rapidly
-- [ ] Detect casting / early release: flag when LRI < 0.4 or release point > 90° before impact
-- [ ] Detect maintained lag: flag when LRI > 0.5 and release point < 50° before impact
-- [ ] Estimate speed loss from early release (compare actual speed to potential based on lag curve)
-- [ ] Build swing replay overlay:
-  - Draw lead arm and club shaft lines on video frames
-  - Color-code by lag quality (green = good retention, yellow = moderate, red = casting)
-  - Show lag angle number in real-time on replay
-  - Mark release point on the swing arc
-- [ ] Display lag metrics in swing detail view:
-  - Lag Angle at key positions (top, arm parallel, impact)
-  - Lag Retention Index (0–1 scale)
-  - Release Point (degrees before impact)
-  - Shaft Lean at Impact (degrees, positive = forward lean)
-  - Casting/Lag verdict with explanation
+- [x] Implement Apple Vision `VNDetectHumanBodyPose3DRequest` integration (`LagAnalyser.swift`)
+- [x] Extract lead arm landmarks: shoulder, elbow, wrist positions in 3D per frame (`BodyPoseFrame`)
+- [x] Combine wrist landmark with club head position to derive shaft vector
+- [x] Calculate lag angle in true 3D: `angle_between(elbow→wrist, wrist→club_head)` with 2D fallback
+- [x] Build lag angle curve across entire swing
+- [x] Identify key measurement points (top, arm parallel, impact)
+- [x] Calculate **Lag Retention Index (LRI)**
+- [x] Calculate **Release Point** (degrees of arm rotation before impact)
+- [x] Detect casting / early release (LRI < 0.4 or release > 90° before impact)
+- [x] Estimate speed loss from early release (Chu et al. formula)
+- [x] Calculate **Shaft Lean at Impact** (hands ahead/behind)
+- [x] Right-handed / left-handed golfer support (`isRightHanded` parameter)
+- [x] Lead arm angle to vertical calculation for phase classification
+- [x] Store lag data in SwiftData alongside speed data per swing
+- [ ] Build swing replay overlay (draw arm/shaft lines, color-code, show angle)
+- [ ] Display lag metrics in swing detail view (wired to LagMetrics data)
 - [ ] Add comparative view: show lag metrics side-by-side between two swings
-- [ ] Store lag data in SwiftData alongside speed data per swing
 - [ ] **Milestone:** Swing replay shows arm/shaft overlay with lag angle and casting detection
 
 ### 3.5 Adaptive Frame Sampling
-- [ ] Implement swing phase detection (fast first pass at ~30fps using motion magnitude + audio timing)
-- [ ] Define phase boundaries: address, backswing, top, early downswing, late downswing/impact, post-impact, follow-through
-- [ ] Implement variable-rate second pass: 30-60fps for slow phases, full 240fps for critical downswing-to-impact
+- [x] Implement swing phase classification from motion + timing (`AdaptiveFrameSampler.swift`)
+- [x] Define phase boundaries (address through follow-through)
+- [x] Implement variable-rate frame selection per phase (30-240fps)
+- [x] Configurable sampling rates via `SamplingConfig`
+- [x] Sampling statistics report (frames analysed, skipped, reduction %)
+- [x] Integrated into `PostCaptureAnalysisEngine` two-pass pipeline
 - [ ] Benchmark total processing time: full 240fps vs adaptive sampling
 - [ ] Tune per-phase sampling rates based on measured accuracy impact
-- [ ] Track processing time per phase to identify optimization opportunities
-- [ ] Target: ~45% reduction in frames processed with negligible accuracy loss
-- [ ] **Milestone:** Adaptive processing completes in <3 seconds for a typical swing
+- [ ] **Milestone:** Adaptive processing completes in <3 seconds for a typical swing (requires device testing)
 
 ### 3.6 Accuracy Validation
 - [ ] Test against known-speed reference device (borrow/rent Garmin R10 or similar)
