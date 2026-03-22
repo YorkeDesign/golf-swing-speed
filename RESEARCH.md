@@ -729,8 +729,10 @@ HackMotion — the leading wrist measurement sensor — tracks three axes:
   lag_angle = angle_between(forearm_vector, shaft_vector)
   ```
 - **2D limitation — CRITICAL:** Sportsbox AI warns that a golfer can appear to have **31° in 2D front-on view but actually 72° in 3D**. The swing plane is not perpendicular to the camera, so 2D projections severely distort the true angle
-- **Accuracy expectation:** ±5–10° absolute accuracy from 2D front-on video, but 2D values will systematically differ from true 3D values. **Must present as relative comparison metric between swings, NOT absolute degrees**
-- **Recommendation:** Report a "Lag Score" (relative metric for comparing swings) rather than claiming accurate absolute degree measurements
+- **3D solution:** Apple's `VNDetectHumanBodyPose3DRequest` returns 3D joint positions in metres. Combined with our 3D club head position (from LiDAR-calibrated tracking), we can calculate the lag angle in true 3D space — avoiding the 2D parallax problem entirely
+- **Post-capture 3D processing at full 240fps:** The 3D pose request does not need to run in real-time. We record video at 240fps during the swing, then run 3D pose estimation on **every frame** offline after the swing completes. A ~1 second swing = ~240 frames. Even at 15-30ms per frame, total processing takes ~4-9 seconds — acceptable with a progress indicator
+- **Temporal resolution for release detection:** The critical downswing is ~0.25-0.35 seconds = 60-84 frames at 240fps. Each frame is a 4.17ms slice. 3D wrist position at every frame means we can pinpoint the exact release frame to within **~4ms / ~1-2° of arm rotation** — far more precise than HackMotion wrist sensor (~50-100Hz sampling)
+- **Accuracy expectation with 3D approach:** True 3D angle measurement avoids parallax distortion. Accuracy limited primarily by pose estimation joint precision (~2-3cm at these distances) rather than perspective errors. Expected ±3-5° for absolute angle, with excellent relative precision between frames for detecting the release pattern
 
 #### Metric We Should Report
 - **"Lag Retention Index" (LRI)** — a custom metric: the ratio of lag angle at lead-arm-parallel to lag angle at top of backswing. Higher = more lag retained

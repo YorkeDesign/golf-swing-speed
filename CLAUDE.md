@@ -28,11 +28,15 @@ Golf Swing Speed App is an iPhone app that measures golf club head speed using t
 
 ### Core Pipeline
 1. **Audio monitoring** (idle) → detect swing onset via whoosh sound
-2. **240fps capture** triggered by audio → record full swing arc
-3. **Club head detection** via YOLO model (slow frames) + optical flow/Kalman (fast frames)
-4. **Speed calculation** using LiDAR-calibrated pixel-to-metre conversion
-5. **Impact speed extraction** from calibrated impact zone position
-6. **Voice readout** of speed immediately after swing
+2. **240fps capture** triggered by audio → record full swing arc (minimal real-time processing)
+3. **Post-capture analysis** on every frame (~240-360 frames, ~4-15 seconds processing):
+   - 3D body pose (`VNDetectHumanBodyPose3DRequest`) on all frames at full 240fps
+   - Club head detection (YOLO) + tracking (optical flow + Kalman) on all frames
+   - Speed calculation using LiDAR-calibrated 3D positions
+   - Lag angle calculation in true 3D at full temporal resolution
+   - Release point detection to ±4ms / ±1-2° precision
+4. **Impact speed extraction** from calibrated impact zone position
+5. **Audio feedback** of speed + lag analysis results
 
 ### Key Directories (planned)
 ```
@@ -70,7 +74,7 @@ GolfSwingSpeedApp/
 - **Audio-triggered capture** to reduce battery/thermal impact vs continuous recording
 - **LiDAR for calibration only** (60Hz too slow for 240fps tracking) — establishes pixel-to-metre scale
 - **Address position calibration** — while golfer is static at address, combine Apple 3D body pose + LiDAR + CV to measure: club length, lie angle, shaft plane, arm length, ball position. These become Kalman filter constraints during tracking (club head must be within club_length of wrist, approximately in swing plane)
-- **Post-capture processing** for accurate tracking; real-time preview for user feedback only
+- **Post-capture processing at full 240fps** — all heavy analysis (3D pose, YOLO detection, speed calc, lag angle) runs on every frame AFTER swing completes. No real-time processing constraints. ~4-15 seconds total for full analysis. This enables 3D body pose on all 240 frames where real-time would only manage ~60fps
 - **v1 scope: club head speed + lag angle analysis** — no ball tracking, face angle, spin, or other launch monitor metrics
 - **Lag angle detection** via MediaPipe/Vision body pose + club shaft tracking. Reports: Lag Retention Index, Release Point, Shaft Lean at Impact, casting detection
 - **Audio feedback system** with two modes: Beep Mode (low-latency tones) and Voice Mode (AVSpeechSynthesizer). Routes to AirPods/Bluetooth automatically
