@@ -512,12 +512,30 @@ These calibration measurements become **constraints for the Kalman filter** duri
 
 This dramatically narrows the search space vs unconstrained detection, improving both speed and accuracy.
 
-##### Geometry at Address (Face-On Camera at ~2m)
-- All key objects (body, hands, club head, ball) are at approximately the **same depth** from camera (~2m)
-- Hands at address sit ~0.25–0.5m out from the pelvis (closer for wedges, further for driver)
-- LiDAR accuracy at 2m: ±2–3cm — consistent across all measurement points since they're at similar depth
-- Club head on ground is at golfer's feet — same depth as body, not further away
-- Ball (4.3cm diameter) at 2m: LiDAR point density ~150–500 pts/m² = 1–3 direct hits. Marginal for LiDAR alone but sufficient when combined with CV detection of white sphere
+##### Geometry at Address (Face-On Camera)
+The club head and ball are **significantly closer to the camera** than the golfer's body. This is because the golfer stands upright, their arms hang forward, and the club shaft extends down and forward at the lie angle to reach the ground ahead of their feet.
+
+**Depth layout (camera → golfer, face-on):**
+- **Club head / ball:** Closest to camera. The club head sits on the ground ahead of the golfer's feet
+- **Hands:** Forward of the pelvis by ~0.25–0.5m (closer for wedges, further for driver)
+- **Golfer's body (torso/pelvis):** The reference position
+- **Feet:** Furthest from camera (behind the ball position)
+
+**Approximate depth offsets from body centre (forward = closer to camera):**
+
+| Object | Forward Offset | Notes |
+|---|---|---|
+| Club head / ball | +0.7–1.0m (driver), +0.4–0.6m (short iron) | On ground, well ahead of feet |
+| Hands | +0.25–0.5m | Arms hang down and forward from shoulders |
+| Torso / pelvis | 0 (reference) | — |
+| Feet | -0.05–0.1m | Slightly behind body centre |
+
+So if the golfer's body is at 2.5m from camera, the club head could be at ~1.5–2.0m from camera — a **0.5–1.0m depth difference**. This matters for:
+- LiDAR accuracy varies between depths (better at the closer club head, ~±1-2cm; slightly worse at the further body, ~±2-3cm)
+- Pixels-per-metre scale is different at each depth (closer objects appear larger)
+- **This is exactly why direct LiDAR measurement at address is essential** — we measure the actual 3D positions rather than assuming a flat depth plane
+
+**Ball detection via LiDAR:** Golf ball is 4.3cm diameter. At 1.5–2.0m (its actual distance from face-on camera), LiDAR point density is ~300–800 pts/m². This gives ~2-5 points hitting the ball directly — marginal but usable when combined with CV detection of the white sphere
 
 ##### Phase 3: Lock & Capture
 10. Lock all calibration data — camera must remain stationary during capture
