@@ -854,11 +854,56 @@ Two modes selectable by user:
 ## 7. Recommendations for Our App
 
 ### 7.1 Core Architecture
-1. **Detection approach:** Hybrid — YOLO-based club head detection for slow frames (address, backswing) + optical flow/Kalman filter for fast frames (downswing, impact)
-2. **Calibration:** LiDAR-first with manual fallback. Use ARKit raycasting to establish ground plane, ball position, feet positions → compute pixels-per-metre
-3. **Capture:** 240fps at 1080p via AVFoundation. Audio-triggered to minimize battery/thermal impact
-4. **Speed calculation:** Frame-to-frame pixel displacement → calibrated real-world distance → speed. Kalman smoothing. Motion blur analysis as supplementary signal
-5. **Impact detection:** Audio spike + maximum speed in tracked trajectory + calibrated impact zone position
+1. **Detection approach:** Hybrid — YOLO-based club head detection + Apple Vision 3D body pose + optical flow + Kalman filter
+2. **Calibration:** Three-phase — scene (LiDAR ground plane), equipment (club length, lie angle from address position 3D analysis), and manual fallback
+3. **Capture:** 240fps at 1080p via AVFoundation. Audio-triggered to minimize battery/thermal impact. Minimal real-time processing during capture
+4. **Post-capture analysis:** Two-pass adaptive processing:
+   - **Pass 1 (fast):** ~30fps phase detection — identify swing segments from gross motion + audio timing
+   - **Pass 2 (targeted):** Full 3D pose + YOLO + tracking at variable FPS per phase
+5. **Speed calculation:** 3D position tracking → calibrated real-world distance → speed. Kalman smoothing. Motion blur analysis as supplementary signal
+6. **Impact detection:** Audio spike + maximum speed in tracked trajectory + calibrated impact zone position
+
+### 7.1.1 Adaptive Frame Sampling (Post-Capture Processing)
+Not all swing phases need full 240fps analysis. Variable sampling reduces processing by ~45%:
+
+| Swing Phase | Duration | Analysis FPS | Frames (1.2s swing) | Rationale |
+|---|---|---|---|---|
+| Address → Takeaway | ~0.5-1.0s | 30fps | ~15-30 | Slow, predictable movement |
+| Backswing | ~0.6-0.8s | 60fps | ~36-48 | Smooth arc, moderate speed |
+| Top / Transition | ~0.1-0.2s | 120fps | ~12-24 | Direction change, wrist set position matters |
+| Early downswing | ~0.15-0.2s | 240fps | ~36-48 | Lag building, rapid acceleration |
+| Late downswing → Impact | ~0.05-0.1s | **240fps (every frame)** | ~12-24 | **Maximum speed, release point, impact — critical zone** |
+| Post-impact | ~0.1-0.15s | 120fps | ~12-18 | Deceleration, useful for validation |
+| Follow-through / Finish | ~0.3-0.5s | 60fps | ~18-30 | Low information density |
+| **Total** | **~1.2s** | **Variable** | **~140-160** | **vs ~288 at full 240fps** |
+
+**Two-pass approach:**
+1. Quick first pass at ~30fps detects swing phases from motion magnitude + audio landmarks (whoosh onset, impact transient, energy decay)
+2. Second pass processes only the frames needed per phase, concentrating compute on the critical downswing-to-impact window
+
+**Tunable:** These sampling rates are initial estimates. As we gather real performance data, we can adjust per-phase FPS up or down based on what actually affects measurement accuracy. Some phases may need fewer frames than estimated; the critical impact zone may benefit from every single frame.
+
+### 7.1.2 Future: Learned Inference Model ("Coach's Eye")
+**Long-term vision:** Train an ML model that predicts swing metrics from minimal input, like an experienced coach who can call out swing speed by sight or sound.
+
+**How it works:**
+1. **Data collection phase:** Every swing fully analysed by the physics-based pipeline (240fps, 3D pose, full tracking) builds a ground-truth dataset
+2. **Training:** Model learns the relationship between sparse observations and full measurements:
+   - Input: ~10-15 frames from the downswing (30-60fps equivalent) + audio waveform + address calibration data
+   - Output: club head speed, lag retention index, release point — all with confidence scores
+   - The model implicitly learns swing physics, biomechanics, and the audio-visual correlations
+3. **Deployment:** Trained model runs in milliseconds, giving near-instant results from minimal capture data
+4. **Verification mode:** Full 240fps pipeline remains available for maximum precision when the golfer wants detailed analysis
+
+**Analogy:** A long-time golf coach can watch a single swing and accurately estimate club head speed within 2-3 mph. They've internalised thousands of swings and learned the subtle cues — the blur of the club, the sound of the whoosh, the tempo of the body rotation. Our model does the same via knowledge distillation from the full physics pipeline.
+
+**Technical approach:** This is a form of **knowledge distillation** — compressing a slow, accurate teacher (full pipeline) into a fast, lightweight student (inference model). Similar to how SwingVision likely operates at 60fps with decent accuracy despite not having 240fps data.
+
+**Benefits:**
+- Near-instant feedback (milliseconds vs seconds)
+- Lower battery/thermal impact (fewer frames captured and processed)
+- Could eventually work on non-Pro iPhones (no LiDAR needed if the model has learned the physics)
+- Continuous improvement as more swings are processed
 
 ### 7.2 Accuracy Strategy
 - **v1 target: ±5-8 mph** with basic frame-to-frame tracking (naive approach)

@@ -74,7 +74,9 @@ GolfSwingSpeedApp/
 - **Audio-triggered capture** to reduce battery/thermal impact vs continuous recording
 - **LiDAR for calibration only** (60Hz too slow for 240fps tracking) — establishes pixel-to-metre scale
 - **Address position calibration** — while golfer is static at address, combine Apple 3D body pose + LiDAR + CV to measure: club length, lie angle, shaft plane, arm length, ball position. These become Kalman filter constraints during tracking (club head must be within club_length of wrist, approximately in swing plane)
-- **Post-capture processing at full 240fps** — all heavy analysis (3D pose, YOLO detection, speed calc, lag angle) runs on every frame AFTER swing completes. No real-time processing constraints. ~4-15 seconds total for full analysis. This enables 3D body pose on all 240 frames where real-time would only manage ~60fps
+- **Post-capture processing** — all heavy analysis runs AFTER swing completes. No real-time constraints
+- **Adaptive frame sampling** — not all swing phases need 240fps analysis. Late downswing → impact gets full 240fps; backswing and follow-through processed at 30-60fps. Two-pass approach: fast phase detection pass at ~30fps, then targeted full analysis on critical frames. Reduces processing by ~45%
+- **Future: learned inference model** — as the app builds a dataset of fully-analysed swings, train an ML model that predicts speed/lag/release from sparse inputs (fewer frames + audio + calibration). Goal: near-instant results from minimal data, with full pipeline as verification mode
 - **v1 scope: club head speed + lag angle analysis** — no ball tracking, face angle, spin, or other launch monitor metrics
 - **Lag angle detection** via MediaPipe/Vision body pose + club shaft tracking. Reports: Lag Retention Index, Release Point, Shaft Lean at Impact, casting detection
 - **Audio feedback system** with two modes: Beep Mode (low-latency tones) and Voice Mode (AVSpeechSynthesizer). Routes to AirPods/Bluetooth automatically

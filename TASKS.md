@@ -216,7 +216,17 @@
 - [ ] Store lag data in SwiftData alongside speed data per swing
 - [ ] **Milestone:** Swing replay shows arm/shaft overlay with lag angle and casting detection
 
-### 3.5 Accuracy Validation
+### 3.5 Adaptive Frame Sampling
+- [ ] Implement swing phase detection (fast first pass at ~30fps using motion magnitude + audio timing)
+- [ ] Define phase boundaries: address, backswing, top, early downswing, late downswing/impact, post-impact, follow-through
+- [ ] Implement variable-rate second pass: 30-60fps for slow phases, full 240fps for critical downswing-to-impact
+- [ ] Benchmark total processing time: full 240fps vs adaptive sampling
+- [ ] Tune per-phase sampling rates based on measured accuracy impact
+- [ ] Track processing time per phase to identify optimization opportunities
+- [ ] Target: ~45% reduction in frames processed with negligible accuracy loss
+- [ ] **Milestone:** Adaptive processing completes in <3 seconds for a typical swing
+
+### 3.6 Accuracy Validation
 - [ ] Test against known-speed reference device (borrow/rent Garmin R10 or similar)
 - [ ] Record 100+ swings at various speeds
 - [ ] Calculate mean absolute error, standard deviation
@@ -290,6 +300,7 @@
 
 ## Future / Backlog (Post v1)
 
+### Features
 - [ ] Slow-motion swing replay with speed overlay
 - [ ] Speed comparison between swings / sessions
 - [ ] Club-by-club speed profiles
@@ -298,10 +309,19 @@
 - [ ] Side-on camera mode (second angle)
 - [ ] Dual camera capture (wide + telephoto simultaneously)
 - [ ] Reflective marker detection mode for enhanced accuracy
-- [ ] Frame interpolation (RIFE) for synthetic FPS increase
 - [ ] Apple Watch integration for wrist speed supplement
 - [ ] Social features / leaderboards
 - [ ] iPad support
+
+### Learned Inference Model ("Coach's Eye")
+- [ ] Implement anonymised swing data collection (with user consent) during full-pipeline analysis
+- [ ] Build training dataset: sparse inputs (10-15 downswing frames + audio + calibration) → full ground-truth outputs (speed, lag, release point)
+- [ ] Train inference model (knowledge distillation from full pipeline to lightweight predictor)
+- [ ] Validate model accuracy against full pipeline on held-out swings
+- [ ] Deploy as optional "Quick Mode" — near-instant results from minimal capture
+- [ ] Retain full pipeline as "Detailed Analysis" / verification mode
+- [ ] Explore: could this model work on non-LiDAR iPhones (learning physics from data rather than measuring it)?
+- [ ] Explore: audio-only speed estimation (can the model predict speed from just the swing sound?)
 
 ---
 
