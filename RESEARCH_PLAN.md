@@ -1,4 +1,4 @@
-# Golf Swing Speed App — Research Plan
+# Golf Swing Speed App App — Research Plan
 
 > **Purpose:** This document outlines the research brief for a comprehensive study of all existing golf swing tracking apps, software, hardware systems, academic papers, and open-source projects that use cameras (and related sensor technologies) to measure golf club head speed and swing metrics. It serves as the specification for conducting and writing `RESEARCH.md`.
 
@@ -229,7 +229,7 @@ The output should be saved as `RESEARCH.md` in the root of this repository.
 Structure of `RESEARCH.md`:
 
 ```
-# Golf Swing Speed — Competitive & Technology Research
+# Golf Swing Speed App — Competitive & Technology Research
 
 ## Executive Summary
 ## 1. Commercial Products
@@ -282,4 +282,4 @@ This research document should be completed before any app architecture or code i
 
 ---
 
-*This research plan was created as part of the Golf Swing Speed iPhone App project. See `README.md` for full project overview.*
+*This research plan was created as part of the Golf Swing Speed App iPhone App project. See `README.md` for full project overview.*

@@ -1,15 +1,15 @@
-# Golf Swing Speed — iPhone App
+# Golf Swing Speed App — iPhone App
 
 > **Status:** Pre-development — Research & Planning Phase
-> **Working Title:** Golf Swing Speed (name TBD)
+> **Working Title:** Golf Swing Speed App (name TBD)
 > **Platform:** iOS (iPhone)
-> **Repo:** [YorkeDesign/golf-swing-speed](https://github.com/YorkeDesign/golf-swing-speed)
+> **Repo:** [YorkeDesign/Golf-Swing-Speed-App](https://github.com/YorkeDesign/Golf-Swing-Speed-App)
 
 ---
 
 ## Overview
 
-**Golf Swing Speed** is an iPhone app that uses the device's built-in LiDAR scanner and high-FPS camera to measure golf club head speed throughout the full arc of a swing — with no external hardware required.
+**Golf Swing Speed App** is an iPhone app that uses the device's built-in LiDAR scanner and high-FPS camera to measure golf club head speed throughout the full arc of a swing — with no external hardware required.
 
 Existing solutions either cost thousands of dollars (professional launch monitors) or lack real-time speed measurement (swing analysis video apps). This app aims to fill the gap: accurate, instant club head speed measurement from a single iPhone, free from proprietary hardware.
 
@@ -177,7 +177,7 @@ IDLE → SETUP_DETECTED → READY → SWING_IN_PROGRESS → SWING_COMPLETE → P
 ## Project Structure
 
 ```
-golf-swing-speed/
+Golf-Swing-Speed-App/
 ├── README.md                    ← This file
 ├── RESEARCH_PLAN.md             ← Research brief and methodology
 ├── RESEARCH.md                  ← Completed research (populated separately)
