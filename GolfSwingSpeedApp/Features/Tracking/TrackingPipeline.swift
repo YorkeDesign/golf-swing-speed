@@ -17,6 +17,7 @@ actor TrackingPipeline {
         var swingPlane: SIMD3<Float>?       // Normal vector of predicted swing plane
         var confidenceThreshold: Float = 0.3 // Minimum YOLO confidence to accept detection
         var redetectionInterval: Int = 10    // Frames between forced YOLO re-detections
+        var isPostCapture: Bool = true       // Use .accurate tracking for post-capture (vs .fast for real-time)
     }
 
     private var config: Config
@@ -135,7 +136,9 @@ actor TrackingPipeline {
         let observation = VNDetectedObjectObservation(boundingBox: boundingBox)
         trackingObservation = observation
         visionTracker = VNTrackObjectRequest(detectedObjectObservation: observation)
-        visionTracker?.trackingLevel = .fast
+        // Use .accurate for post-capture analysis (no real-time constraint)
+        // Use .fast for live preview/real-time scenarios
+        visionTracker?.trackingLevel = config.isPostCapture ? .accurate : .fast
     }
 
     private func performVisionTracking(on pixelBuffer: CVPixelBuffer) -> (center: CGPoint, confidence: Float)? {

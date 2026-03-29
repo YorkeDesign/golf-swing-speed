@@ -26,8 +26,9 @@ actor OpticalFlowTracker {
         /// Maximum flow magnitude (reject outliers)
         var maxFlowMagnitude: Float = 200.0
 
-        /// Computational level for optical flow (higher = more accurate, slower)
-        var computationAccuracy: VNGenerateOpticalFlowRequest.ComputationAccuracy = .medium
+        /// Computational level for optical flow (higher = more accurate, slower).
+        /// Use .high for post-capture analysis, .medium for real-time.
+        var computationAccuracy: VNGenerateOpticalFlowRequest.ComputationAccuracy = .high
 
         /// Number of frames without valid flow before declaring track lost
         var maxFramesWithoutFlow: Int = 5
