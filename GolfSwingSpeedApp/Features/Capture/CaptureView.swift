@@ -1,7 +1,10 @@
 import SwiftUI
+import SwiftData
 import AVFoundation
 
 struct CaptureView: View {
+    @Environment(\.modelContext) private var modelContext
+
     @State private var swingState: SwingState = .idle
     @State private var lastSpeedMph: Double?
     @State private var lastFrameCount: Int?
@@ -10,6 +13,7 @@ struct CaptureView: View {
     @State private var showFrameAnalysis = false
     @State private var selectedClub: ClubType = .driver
     @State private var errorMessage: String?
+    @State private var sessionId = UUID()
 
     @State private var cameraManager = CameraManager()
     @State private var permissionsManager = PermissionsManager()
@@ -99,6 +103,7 @@ struct CaptureView: View {
                         if let speed {
                             lastSpeedMph = speed
                         }
+                        saveSwingRecord(speed: speed, profile: profile)
                     }
                 }
             }
@@ -364,8 +369,24 @@ struct CaptureView: View {
             }
         }
     }
+    // MARK: - Save Swing Record
+
+    private func saveSwingRecord(speed: Double?, profile: SpeedProfile?) {
+        let record = SwingRecord(
+            impactSpeedMph: speed,
+            confidenceScore: profile?.dataPoints.isEmpty == false ? 0.8 : 0.3,
+            clubType: selectedClub,
+            sessionId: sessionId,
+            videoURL: lastRecordingURL
+        )
+        record.speedProfile = profile
+        record.calibrationSnapshot = calibrationManager.calibrationData
+
+        modelContext.insert(record)
+    }
 }
 
 #Preview {
     CaptureView()
+        .modelContainer(for: SwingRecord.self, inMemory: true)
 }
