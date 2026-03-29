@@ -116,8 +116,11 @@ final class SwingAudioDetector {
         switch state {
         case .monitoring:
             if rms > ambientBaseline * whooshOnsetMultiplier {
-                // Confirm it's a whoosh (rising energy, not a one-off noise)
-                if isRisingEnergy() {
+                // Run spectral analysis to filter wind vs whoosh
+                let spectral = spectralAnalysis(data: channelData, count: frameCount)
+
+                // Confirm it's a whoosh (rising energy + spectral confirmation, not wind)
+                if isRisingEnergy() && spectral != .wind {
                     state = .swingDetected
                     onSwingOnset?()
                 }
@@ -187,18 +190,128 @@ final class SwingAudioDetector {
         return secondHalf < firstHalf * 0.6
     }
 
-    // MARK: - Spectral Analysis (Phase 3 enhancement)
+    // MARK: - Spectral Analysis
 
     /// Analyse frequency content to distinguish golf whoosh from wind noise.
     /// Golf whoosh: concentrated energy in 200-2000Hz range
-    /// Wind: broadband low-frequency noise
+    /// Wind: broadband low-frequency noise (<200Hz dominant)
     /// Impact: sharp broadband spike with energy in 2-5kHz range
+    /// Speech: energy concentrated in 300-3000Hz with harmonic structure
     private func spectralAnalysis(data: UnsafePointer<Float>, count: Int) -> SwingAudioCharacteristic {
-        // Placeholder for FFT-based spectral analysis
-        // Will use vDSP_fft_zrip for real FFT
-        // Classify based on energy distribution across frequency bands
+        guard count >= fftSize else { return .unknown }
+
+        // Prepare FFT
+        let log2n = vDSP_Length(log2(Float(fftSize)))
+        guard let fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2)) else {
+            return .unknown
+        }
+        defer { vDSP_destroy_fftsetup(fftSetup) }
+
+        // Copy input data and apply Hann window
+        var windowedData = [Float](repeating: 0, count: fftSize)
+        var window = [Float](repeating: 0, count: fftSize)
+        vDSP_hann_window(&window, vDSP_Length(fftSize), Int32(vDSP_HANN_NORM))
+        vDSP_vmul(data, 1, window, 1, &windowedData, 1, vDSP_Length(fftSize))
+
+        // Split complex for FFT
+        var realPart = [Float](repeating: 0, count: fftSize / 2)
+        var imagPart = [Float](repeating: 0, count: fftSize / 2)
+
+        // Pack into split complex
+        windowedData.withUnsafeBufferPointer { dataPtr in
+            realPart.withUnsafeMutableBufferPointer { realPtr in
+                imagPart.withUnsafeMutableBufferPointer { imagPtr in
+                    var splitComplex = DSPSplitComplex(
+                        realp: realPtr.baseAddress!,
+                        imagp: imagPtr.baseAddress!
+                    )
+                    dataPtr.baseAddress!.withMemoryRebound(to: DSPComplex.self, capacity: fftSize / 2) { complexPtr in
+                        vDSP_ctoz(complexPtr, 2, &splitComplex, 1, vDSP_Length(fftSize / 2))
+                    }
+
+                    // Perform FFT
+                    vDSP_fft_zrip(fftSetup, &splitComplex, 1, log2n, FFTDirection(FFT_FORWARD))
+
+                    // Compute magnitude spectrum
+                    var magnitudes = [Float](repeating: 0, count: fftSize / 2)
+                    vDSP_zvmags(&splitComplex, 1, &magnitudes, 1, vDSP_Length(fftSize / 2))
+
+                    // Classify based on frequency band energy distribution
+                    // Assuming 48kHz sample rate: bin resolution = 48000 / 512 ≈ 93.75 Hz/bin
+                    let binResolution: Float = 48000.0 / Float(fftSize)
+
+                    // Frequency bands (in bins)
+                    let lowBandEnd = Int(200.0 / binResolution)       // 0-200 Hz
+                    let midBandStart = Int(200.0 / binResolution)
+                    let midBandEnd = Int(2000.0 / binResolution)      // 200-2000 Hz
+                    let highBandStart = Int(2000.0 / binResolution)
+                    let highBandEnd = Int(5000.0 / binResolution)     // 2000-5000 Hz
+
+                    let totalBins = min(fftSize / 2, magnitudes.count)
+
+                    // Sum energy in each band
+                    var lowEnergy: Float = 0
+                    var midEnergy: Float = 0
+                    var highEnergy: Float = 0
+                    var totalEnergy: Float = 0
+
+                    for i in 0..<totalBins {
+                        let mag = magnitudes[i]
+                        totalEnergy += mag
+                        if i < lowBandEnd {
+                            lowEnergy += mag
+                        } else if i >= midBandStart && i < midBandEnd {
+                            midEnergy += mag
+                        } else if i >= highBandStart && i < highBandEnd {
+                            highEnergy += mag
+                        }
+                    }
+
+                    guard totalEnergy > 0 else { return }
+
+                    let lowRatio = lowEnergy / totalEnergy
+                    let midRatio = midEnergy / totalEnergy
+                    let highRatio = highEnergy / totalEnergy
+
+                    // Classification rules based on spectral distribution
+                    lastSpectralClassification = classifySpectrum(
+                        lowRatio: lowRatio,
+                        midRatio: midRatio,
+                        highRatio: highRatio
+                    )
+                }
+            }
+        }
+
+        return lastSpectralClassification
+    }
+
+    /// Classify audio based on spectral energy distribution.
+    private func classifySpectrum(lowRatio: Float, midRatio: Float, highRatio: Float) -> SwingAudioCharacteristic {
+        // Wind: dominated by low frequencies (>60% below 200Hz)
+        if lowRatio > 0.6 && midRatio < 0.25 {
+            return .wind
+        }
+
+        // Impact: significant high-frequency energy (>25% in 2-5kHz)
+        if highRatio > 0.25 && currentRMSEnergy > ambientBaseline * impactSpikeMultiplier * 0.5 {
+            return .impact
+        }
+
+        // Whoosh: energy concentrated in mid frequencies (200-2000Hz, >40%)
+        if midRatio > 0.4 && lowRatio < 0.4 {
+            return .whoosh
+        }
+
+        // Speech: mid-frequency dominant with moderate low
+        if midRatio > 0.35 && lowRatio > 0.2 && lowRatio < 0.5 {
+            return .speech
+        }
+
         return .unknown
     }
+
+    private var lastSpectralClassification: SwingAudioCharacteristic = .unknown
 
     enum SwingAudioCharacteristic {
         case whoosh          // Downswing sound
