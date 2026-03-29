@@ -191,22 +191,20 @@ actor OpticalFlowTracker {
             let rowPtr = baseAddress.advanced(by: y * bytesPerRow)
             for x in stride(from: minX, through: maxX, by: 2) {
                 if pixelFormat == kCVPixelFormatType_TwoComponent32Float {
-                    // 2 × Float32 per pixel
+                    // 2 × Float32 per pixel (use loadUnaligned for safety)
                     let offset = x * 8
-                    let dx = rowPtr.load(fromByteOffset: offset, as: Float.self)
-                    let dy = rowPtr.load(fromByteOffset: offset + 4, as: Float.self)
+                    let dx = rowPtr.loadUnaligned(fromByteOffset: offset, as: Float.self)
+                    let dy = rowPtr.loadUnaligned(fromByteOffset: offset + 4, as: Float.self)
 
                     // Scale flow back to image coordinates
                     let scaledDx = dx / scaleX
                     let scaledDy = dy / scaleY
                     flowVectors.append(SIMD2<Float>(scaledDx, scaledDy))
                 } else if pixelFormat == kCVPixelFormatType_TwoComponent16Half {
-                    // 2 × Float16 per pixel
+                    // 2 × Float16 per pixel (native Swift Float16 on ARM)
                     let offset = x * 4
-                    let rawDx = rowPtr.load(fromByteOffset: offset, as: UInt16.self)
-                    let rawDy = rowPtr.load(fromByteOffset: offset + 2, as: UInt16.self)
-                    let dx = float16ToFloat32(rawDx)
-                    let dy = float16ToFloat32(rawDy)
+                    let dx = Float(rowPtr.loadUnaligned(fromByteOffset: offset, as: Float16.self))
+                    let dy = Float(rowPtr.loadUnaligned(fromByteOffset: offset + 2, as: Float16.self))
 
                     let scaledDx = dx / scaleX
                     let scaledDy = dy / scaleY
@@ -235,37 +233,5 @@ actor OpticalFlowTracker {
         return magnitude >= config.minFlowMagnitude && magnitude <= config.maxFlowMagnitude
     }
 
-    /// Convert Float16 (stored as UInt16) to Float32.
-    private func float16ToFloat32(_ value: UInt16) -> Float {
-        var float16 = value
-        var float32: Float = 0
-        // Use vImage or manual conversion
-        withUnsafePointer(to: &float16) { src in
-            withUnsafeMutablePointer(to: &float32) { dst in
-                // IEEE 754 half-precision to single-precision
-                let sign = (src.pointee & 0x8000) >> 15
-                let exponent = (src.pointee & 0x7C00) >> 10
-                let mantissa = src.pointee & 0x03FF
-
-                if exponent == 0 {
-                    // Subnormal or zero
-                    if mantissa == 0 {
-                        dst.pointee = sign == 1 ? -0.0 : 0.0
-                    } else {
-                        var m = Float(mantissa) / 1024.0
-                        m *= pow(2.0, -14.0)
-                        dst.pointee = sign == 1 ? -m : m
-                    }
-                } else if exponent == 31 {
-                    // Inf or NaN
-                    dst.pointee = mantissa == 0 ? (sign == 1 ? -.infinity : .infinity) : .nan
-                } else {
-                    let e = Float(Int(exponent) - 15)
-                    let m = 1.0 + Float(mantissa) / 1024.0
-                    dst.pointee = (sign == 1 ? -1.0 : 1.0) * m * pow(2.0, e)
-                }
-            }
-        }
-        return float32
-    }
+    // Float16 is natively supported on ARM (Swift 5.3+), no manual conversion needed.
 }

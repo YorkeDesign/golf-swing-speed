@@ -14,6 +14,7 @@ import simd
 ///
 /// IMPORTANT: ARKit session and AVCaptureSession cannot run simultaneously.
 /// LiDAR calibration must complete before switching to 240fps capture mode.
+@MainActor
 @Observable
 final class LiDARCalibrationManager {
 
@@ -51,7 +52,7 @@ final class LiDARCalibrationManager {
 
     // MARK: - LiDAR Availability
 
-    static var isLiDARAvailable: Bool {
+    nonisolated static var isLiDARAvailable: Bool {
         ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh)
     }
 
@@ -149,12 +150,12 @@ final class LiDARCalibrationManager {
     // MARK: - Distance Calculation
 
     /// Calculate real-world distance between two 3D points.
-    static func distance3D(_ a: SIMD3<Float>, _ b: SIMD3<Float>) -> Float {
+    nonisolated static func distance3D(_ a: SIMD3<Float>, _ b: SIMD3<Float>) -> Float {
         simd_distance(a, b)
     }
 
     /// Calculate pixels-per-metre from two known 3D points and their pixel positions.
-    static func calculatePixelsPerMetre(
+    nonisolated static func calculatePixelsPerMetre(
         point1_3D: SIMD3<Float>,
         point2_3D: SIMD3<Float>,
         point1_2D: CGPoint,
@@ -304,8 +305,8 @@ final class LiDARCalibrationManager {
         return CalibrationSnapshot(
             method: .lidar,
             pixelsPerMetre: pixelsPerMetre,
-            impactZoneX: ballPosition3D != nil ? Double(ballPosition3D!.x) : 0,
-            impactZoneY: ballPosition3D != nil ? Double(ballPosition3D!.y) : 0,
+            impactZoneX: Double(ballPosition3D?.x ?? 0),
+            impactZoneY: Double(ballPosition3D?.y ?? 0),
             cameraToSubjectDistance: Double(cameraToSubjectDistance ?? 2.5),
             clubLength: Double(clubLength),
             lieAngle: Double(lieAngle),
@@ -335,11 +336,18 @@ final class LiDARCalibrationManager {
 
     // MARK: - Helpers
 
+    /// Extract joint position from 3D body pose observation.
+    ///
+    /// NOTE: `localPosition` returns joint positions relative to the body root joint.
+    /// For relative measurements (club length, arm length, lie angle), this is correct
+    /// since we only need distances between joints. For absolute world positioning
+    /// (camera-to-subject distance), we use the root joint position from ARKit + body height.
     private func jointPosition3D(
         _ observation: VNHumanBodyPose3DObservation,
         _ jointName: VNHumanBodyPose3DObservation.JointName
     ) -> SIMD3<Float>? {
         guard let point = try? observation.recognizedPoint(jointName) else { return nil }
+        // localPosition is relative to body root — sufficient for inter-joint distances
         let position = point.localPosition
         return SIMD3<Float>(position.columns.3.x, position.columns.3.y, position.columns.3.z)
     }

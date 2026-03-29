@@ -64,7 +64,7 @@ enum CalibrationMethod: String, Codable {
     case lidar
 }
 
-struct CalibrationSnapshot: Codable {
+struct CalibrationSnapshot: Codable, Sendable {
     var method: CalibrationMethod
     var pixelsPerMetre: Double
     var impactZoneX: Double

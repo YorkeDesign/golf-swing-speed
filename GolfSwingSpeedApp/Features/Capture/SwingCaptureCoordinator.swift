@@ -12,6 +12,7 @@ import AVFoundation
 ///
 /// This coordinator replaces the manual record button flow.
 /// When auto-capture is enabled, the user just swings and gets results.
+@MainActor
 @Observable
 final class SwingCaptureCoordinator {
 
@@ -62,6 +63,7 @@ final class SwingCaptureCoordinator {
     // Recording state
     private var recordingStartTime: Date?
     private var audioImpactTimestamp: TimeInterval?
+    private var recordingTimeoutTask: Task<Void, Never>?
     private let maxRecordingDuration: TimeInterval = 4.0 // Safety timeout
 
     // MARK: - Init
@@ -114,12 +116,12 @@ final class SwingCaptureCoordinator {
         lastRecordingURL = url
         state = .recording
 
-        // Start a safety timeout
-        Task {
-            try? await Task.sleep(for: .seconds(maxRecordingDuration))
-            if state == .recording {
-                try? await stopRecordingAndAnalyse()
-            }
+        // Start a safety timeout (cancel previous if any)
+        recordingTimeoutTask?.cancel()
+        recordingTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(self?.maxRecordingDuration ?? 4.0))
+            guard let self, self.state == .recording else { return }
+            try? await self.stopRecordingAndAnalyse()
         }
 
         return url
@@ -128,6 +130,9 @@ final class SwingCaptureCoordinator {
     /// Manually stop recording and trigger analysis.
     func stopRecordingAndAnalyse() async throws {
         guard state == .recording else { return }
+
+        recordingTimeoutTask?.cancel()
+        recordingTimeoutTask = nil
 
         let url = try await cameraManager.stopRecording()
         lastRecordingURL = url
@@ -226,6 +231,8 @@ final class SwingCaptureCoordinator {
     // MARK: - Reset
 
     func reset() {
+        recordingTimeoutTask?.cancel()
+        recordingTimeoutTask = nil
         state = captureMode == .automatic ? .listening : .idle
         lastResult = nil
         lastRecordingURL = nil

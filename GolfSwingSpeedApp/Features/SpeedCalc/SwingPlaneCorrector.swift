@@ -160,10 +160,14 @@ struct SwingPlaneCorrector {
         let radiusVector = point3D - plane.pivotPoint
         let tangentDir = simd_normalize(simd_cross(plane.planeNormal, radiusVector))
 
-        // The correction factor depends on how much of the velocity is visible to the camera
-        // Camera sees the component of velocity perpendicular to its viewing direction
+        // The correction factor depends on how much of the velocity is visible to the camera.
+        // Camera sees velocity projected onto the image plane (perpendicular to view direction).
         let viewDir = simd_normalize(point3D - plane.cameraPosition)
-        let visibleComponent = abs(simd_dot(tangentDir, simd_cross(viewDir, SIMD3<Float>(0, 1, 0))))
+
+        // Project tangent onto image plane: remove the component along the view direction
+        let tangentAlongView = simd_dot(tangentDir, viewDir) * viewDir
+        let visibleTangent = tangentDir - tangentAlongView
+        let visibleComponent = simd_length(visibleTangent)
 
         // Correction factor = 1 / visible_component (clamped for stability)
         let clampedVisible = Swift.max(0.3, Swift.min(1.0, visibleComponent))
@@ -200,7 +204,7 @@ struct SwingPlaneCorrector {
         depthAtCalibration: Float,
         depthAtMeasurement: Float
     ) -> Double {
-        guard depthAtCalibration > 0 else { return 1.0 }
+        guard depthAtCalibration > 0, depthAtMeasurement > 0 else { return 1.0 }
         // Perspective: apparent size is inversely proportional to depth
         // If object is closer, it appears larger (more pixels per metre)
         return Double(depthAtCalibration / depthAtMeasurement)
