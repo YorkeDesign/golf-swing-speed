@@ -2,7 +2,7 @@ import Foundation
 
 enum AppConstants {
     static let appName = "Golf Swing Speed App"
-    static let appVersion = "0.02.01"
+    static let appVersion = "0.02.04"
 
     enum Camera {
         static let targetFPS: Double = 240
@@ -42,5 +42,55 @@ enum AppConstants {
 
     enum History {
         static let freeSwingLimit: Int = 50
+    }
+
+    /// Swing plane angles from ground, in degrees.
+    /// Source: TrackMan data for scratch golfers.
+    /// More upright planes (irons/wedges) need less 3D correction than flatter planes (driver).
+    enum SwingPlane {
+        static let angles: [ClubType: Double] = [
+            .driver: 48.0,
+            .threeWood: 51.0,
+            .hybrid: 55.0,
+            .fiveIron: 57.0,
+            .sixIron: 59.0,
+            .sevenIron: 60.0,
+            .eightIron: 61.0,
+            .nineIron: 62.0,
+            .pitchingWedge: 63.0,
+            .gapWedge: 63.5,
+            .sandWedge: 64.0,
+            .lobWedge: 64.5,
+            .speedStick: 48.0,
+            .other: 55.0,
+        ]
+
+        /// Average swing radii (arm + club length, in metres).
+        static let typicalSwingRadius: [ClubType: Double] = [
+            .driver: 1.75,
+            .threeWood: 1.70,
+            .hybrid: 1.60,
+            .fiveIron: 1.55,
+            .sixIron: 1.50,
+            .sevenIron: 1.45,
+            .eightIron: 1.40,
+            .nineIron: 1.35,
+            .pitchingWedge: 1.30,
+            .gapWedge: 1.28,
+            .sandWedge: 1.25,
+            .lobWedge: 1.22,
+            .speedStick: 1.70,
+            .other: 1.50,
+        ]
+
+        /// Get the swing plane angle for a club type, falling back to default.
+        static func angle(for club: ClubType) -> Double {
+            angles[club] ?? 55.0
+        }
+
+        /// Get the typical swing radius for a club type, falling back to default.
+        static func radius(for club: ClubType) -> Double {
+            typicalSwingRadius[club] ?? 1.50
+        }
     }
 }

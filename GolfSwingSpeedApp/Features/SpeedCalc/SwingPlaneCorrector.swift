@@ -84,18 +84,27 @@ struct SwingPlaneCorrector {
     }
 
     /// Build a default swing plane model when no LiDAR data is available.
-    /// Uses typical swing geometry assumptions.
+    /// Uses typical swing geometry assumptions from TrackMan data.
     ///
     /// - Parameters:
     ///   - clubLengthMetres: Known club length from calibration
     ///   - cameraDistanceMetres: Estimated camera-to-golfer distance
-    ///   - swingPlaneTiltDegrees: Estimated swing plane tilt from vertical (driver ≈ 45°, wedge ≈ 60°)
+    ///   - swingPlaneTiltDegrees: Swing plane tilt from vertical (use AppConstants.SwingPlane.angle for club-specific)
+    ///   - clubType: If provided, uses club-specific swing plane angle from TrackMan data
     static func buildDefaultSwingPlane(
         clubLengthMetres: Float,
         cameraDistanceMetres: Float = 2.5,
-        swingPlaneTiltDegrees: Float = 48
+        swingPlaneTiltDegrees: Float = 48,
+        clubType: ClubType? = nil
     ) -> SwingPlaneModel {
-        let tiltRadians = swingPlaneTiltDegrees * .pi / 180.0
+        // Use club-specific plane angle if club type is provided
+        let planeAngle: Float
+        if let club = clubType {
+            planeAngle = Float(AppConstants.SwingPlane.angle(for: club))
+        } else {
+            planeAngle = swingPlaneTiltDegrees
+        }
+        let tiltRadians = planeAngle * .pi / 180.0
 
         // Default swing plane tilted toward the camera
         let normal = SIMD3<Float>(0, sin(tiltRadians), cos(tiltRadians))
