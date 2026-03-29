@@ -46,8 +46,8 @@
 - [x] Set motion threshold for swing start detection (`SwingStateMachine.swift`)
 - [x] Detect motion cessation for swing end (`SwingStateMachine.swift`)
 - [x] Motion heatmap and centroid detection (`MotionDetector.swift`)
-- [ ] Visualize motion regions on preview (debug overlay)
-- [ ] Test with real golf swings to tune thresholds
+- [x] Visualize motion regions on preview (debug overlay — `MotionDebugOverlay.swift`)
+- [ ] Test with real golf swings to tune thresholds *(requires device)*
 
 ### 1.5 Manual Frame Analysis (Prototype Speed Calc)
 - [x] Build frame-by-frame viewer for captured video
@@ -142,12 +142,12 @@
 - [ ] Test with real golf swings to tune thresholds
 
 ### 2.6 Audio Feedback System (Beeps + Voice)
-- [ ] Design audio feedback sound set (distinct tones for each state)
-- [ ] Create/source short beep tones: ready beep, success beep, error beep, warning pulse
-- [ ] Implement `AVAudioPlayer` for low-latency beep playback (<50ms)
-- [ ] Implement `UINotificationFeedbackGenerator` haptic feedback paired with beeps
-- [ ] Implement `AVSpeechSynthesizer` for voice mode alerts ("Ready", "Swing captured — X mph")
-- [ ] Build feedback manager that dispatches correct sound for each state transition:
+- [x] Design audio feedback sound set (distinct tones for each state)
+- [x] Create sine wave tone generator (`TonePlayer` using AVAudioEngine)
+- [x] Implement low-latency beep playback via generated tones with fade envelope
+- [x] Implement `UINotificationFeedbackGenerator` haptic feedback paired with beeps
+- [x] Implement `AVSpeechSynthesizer` for voice mode alerts ("Ready", "Swing captured — X mph")
+- [x] Build feedback manager that dispatches correct sound for each state transition:
   - Player detected → single low tone / "Player detected"
   - Ready (start pose identified) → double ascending beep / "Ready"
   - Swing captured → confirmation tone / "Swing captured"
@@ -155,14 +155,14 @@
   - Error: swing not detected → descending error tone / "Swing not detected, try again"
   - Error: tracking lost → rapid triple warning beep / "Tracking lost, please retry"
   - Struggling to detect position → slow repeating pulse / "Adjust position"
-  - Calibration complete → rising chime / "Calibration complete"
-- [ ] Add user setting: Beep Mode vs Voice Mode toggle
-- [ ] Configure `AVAudioSession` for AirPods/Bluetooth headphone routing (`.playback` category, `.allowBluetooth`)
-- [ ] Set audio session to duck other audio (`.duckOthers` + `.interruptSpokenAudioAndMixWithOthers`)
-- [ ] Allow user to configure speed readout units (mph / km/h / m/s)
+  - Calibration complete → rising C-E-G chime / "Calibration complete"
+- [x] Add user setting: Beep Mode vs Voice Mode toggle (in SettingsView)
+- [x] Configure `AVAudioSession` for AirPods/Bluetooth headphone routing (`.playback`, `.allowBluetoothA2DP`)
+- [x] Set audio session to duck other audio (`.duckOthers` + `.interruptSpokenAudioAndMixWithOthers`)
+- [x] Allow user to configure speed readout units (mph / km/h / m/s — in SettingsView)
 - [ ] Implement `Core Haptics` (`CHHapticEngine`) for custom haptic patterns synced with audio
-- [ ] Test audio feedback latency with AirPods vs speaker
-- [ ] **Milestone:** Full audio feedback loop working — golfer hears "Ready" → swings → hears speed
+- [ ] Test audio feedback latency with AirPods vs speaker *(requires device)*
+- [ ] **Milestone:** Full audio feedback loop working *(requires device testing)*
 
 ---
 
@@ -240,31 +240,34 @@
 ## Phase 4 — Data, History & UI Polish
 
 ### 4.1 Swing History
-- [ ] Implement SwiftData persistence for swing records
-- [ ] Store: timestamp, impact speed, full speed curve, calibration data, video clip (optional)
-- [ ] Build history list view (date, speed, club type)
-- [ ] Build swing detail view (speed curve chart, video playback)
-- [ ] Implement session grouping (swings from same practice session)
-- [ ] Add basic statistics (average speed, max speed, trend over time)
+- [x] Implement SwiftData persistence for swing records
+- [x] Store: timestamp, impact speed, full speed curve, calibration data, video clip (optional)
+- [x] Build history list view (date, speed, club type) with stats header
+- [x] Build swing detail view (speed curve chart, lag metrics)
+- [x] Implement session grouping (swings from same practice session via sessionId)
+- [x] Add basic statistics (average speed, max speed, swing count)
+- [ ] Trend over time chart
+- [ ] Video playback in swing detail
 
 ### 4.2 Speed Curve Visualization
-- [ ] Build speed-over-time chart (Swift Charts)
-- [ ] Mark impact point on chart
-- [ ] Show speed at backswing, transition, downswing, impact, follow-through
+- [x] Build speed-over-time chart (`SpeedCurveChart.swift` using Swift Charts)
+- [x] Mark impact point on chart (dashed red rule)
+- [x] Show peak speed annotation
+- [x] Summary stats row (peak, impact, duration)
 - [ ] Overlay speed data on video playback (optional)
 
 ### 4.3 Settings
-- [ ] Speed units preference (mph / km/h / m/s)
-- [ ] Voice readout toggle and voice selection
-- [ ] Auto-capture vs manual trigger mode
+- [x] Speed units preference (mph / km/h / m/s)
+- [x] Voice readout toggle and voice selection
+- [x] Auto-capture vs manual trigger mode
 - [ ] Camera resolution preference (240fps vs 120fps fallback)
 - [ ] Data retention settings
-- [ ] Club type selection (driver, iron, wedge — for organization)
+- [x] Club type selection (driver, iron, wedge — for organization)
 
 ### 4.4 UI Polish
 - [ ] Design app icon
-- [ ] Build onboarding flow (camera permission, LiDAR explanation, first calibration)
-- [ ] Add haptic feedback for state transitions
+- [x] Build onboarding flow (4-page intro: speed, camera, calibration, audio)
+- [x] Add haptic feedback for state transitions (via AudioFeedbackManager)
 - [ ] Build loading/processing state UI
 - [ ] Handle edge cases (no LiDAR, low light warning, thermal warning)
 - [ ] Accessibility support (VoiceOver, Dynamic Type)
