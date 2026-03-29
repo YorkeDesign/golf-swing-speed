@@ -42,6 +42,10 @@ actor PostCaptureAnalysisEngine {
 
     var onProgress: ((AnalysisPhase, Double) -> Void)?
 
+    func setProgressCallback(_ callback: @escaping (AnalysisPhase, Double) -> Void) {
+        onProgress = callback
+    }
+
     // MARK: - Dependencies
 
     private let trackingPipeline: TrackingPipeline
