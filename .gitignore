@@ -1,0 +1,30 @@
+# Xcode
+*.xcodeproj/
+xcuserdata/
+*.xcworkspace/
+DerivedData/
+build/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# CocoaPods
+Pods/
+
+# OS
+.DS_Store
+*.swp
+*~
+
+# Xcode automatically generated (regenerate with xcodegen)
+# The .xcodeproj is generated from project.yml — don't commit it

@@ -190,8 +190,13 @@ actor PostCaptureAnalysisEngine {
         onProgress?(.complete, 1.0)
         let processingTime = CFAbsoluteTimeGetCurrent() - startTime
 
-        let confidence = speedProfile?.dataPoints.map(\.confidence).reduce(0, +)
-            .flatMap { $0 / Double(speedProfile?.dataPoints.count ?? 1) } ?? 0
+        let confidence: Double
+        if let dataPoints = speedProfile?.dataPoints, !dataPoints.isEmpty {
+            let sum = dataPoints.map(\.confidence).reduce(0.0, +)
+            confidence = sum / Double(dataPoints.count)
+        } else {
+            confidence = 0.0
+        }
 
         return AnalysisResult(
             speedProfile: speedProfile,
