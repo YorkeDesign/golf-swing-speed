@@ -170,6 +170,19 @@ final class LiDARCalibrationManager {
         return Double(pixelDistance) / Double(realDistance)
     }
 
+    // MARK: - Camera Intrinsics Pixels-Per-Metre
+
+    /// Calculate pixels-per-metre using camera intrinsics (pinhole camera model).
+    /// More accurate than measuring pixel distances between 3D points since it
+    /// uses the actual camera focal length.
+    ///
+    /// Formula: pixels_per_metre = focal_length_pixels / distance_metres
+    func pixelsPerMetreFromIntrinsics(atDistance distanceMetres: Float) -> Double? {
+        guard let frame = arSession?.currentFrame, distanceMetres > 0 else { return nil }
+        let fx = frame.camera.intrinsics[0][0] // Horizontal focal length in pixels
+        return Double(fx / distanceMetres)
+    }
+
     // MARK: - Depth at Point
 
     /// Get the LiDAR depth value at a specific pixel location.
