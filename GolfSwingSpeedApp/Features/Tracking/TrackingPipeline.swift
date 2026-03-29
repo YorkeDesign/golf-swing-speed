@@ -29,6 +29,9 @@ actor TrackingPipeline {
     private var visionTracker: VNTrackObjectRequest?
     private var trackingObservation: VNDetectedObjectObservation?
 
+    // Optical flow tracking (fallback when no ML model available)
+    private let opticalFlowTracker = OpticalFlowTracker()
+
     init(config: Config = Config()) {
         self.config = config
     }
@@ -85,6 +88,18 @@ actor TrackingPipeline {
                 detection = tracked.center
                 confidence = Double(tracked.confidence)
                 source = .visionTracking
+            }
+        }
+
+        // If no Vision tracking, try optical flow (works without ML model)
+        if detection == nil {
+            if let flowPosition = await opticalFlowTracker.track(
+                in: pixelBuffer,
+                roiCenter: kalman?.position
+            ) {
+                detection = flowPosition
+                confidence = 0.6 // Lower confidence for optical flow
+                source = .opticalFlow
             }
         }
 
@@ -153,13 +168,20 @@ actor TrackingPipeline {
         trackedPositions
     }
 
-    func reset() {
+    func reset() async {
         kalman = nil
         trackedPositions = []
         frameCount = 0
         lastDetectionFrame = 0
         visionTracker = nil
         trackingObservation = nil
+        await opticalFlowTracker.reset()
+    }
+
+    /// Set the initial club head position for optical flow tracking
+    /// (e.g., from calibration address position).
+    func setInitialClubHeadPosition(_ position: CGPoint) async {
+        await opticalFlowTracker.setInitialPosition(position)
     }
 }
 
