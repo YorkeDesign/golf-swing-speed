@@ -12,8 +12,12 @@ struct SwingDetailView: View {
                 // Swing info
                 infoSection
 
-                // Speed curve placeholder
-                speedCurvePlaceholder
+                // Speed curve chart
+                if let profile = swing.speedProfile, !profile.isEmpty {
+                    SpeedCurveChart(profile: profile)
+                } else {
+                    speedCurvePlaceholder
+                }
 
                 // Lag metrics placeholder (Premium)
                 lagMetricsPlaceholder
