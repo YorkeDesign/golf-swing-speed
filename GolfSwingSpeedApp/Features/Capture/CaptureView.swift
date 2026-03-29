@@ -115,7 +115,7 @@ struct CaptureView: View {
                 }
             }
             .sheet(isPresented: $showCalibration) {
-                ManualCalibrationView(calibrationManager: calibrationManager)
+                ManualCalibrationView(calibrationManager: calibrationManager, cameraManager: cameraManager, audioFeedback: audioFeedback)
             }
             .fullScreenCover(isPresented: $showFrameAnalysis) {
                 if let url = lastRecordingURL {
@@ -352,11 +352,19 @@ struct CaptureView: View {
 
         do {
             try await cameraManager.configure()
-            let layer = await cameraManager.previewLayer
+
+            // Create preview layer BEFORE starting session — this is fast
+            // Starting the session is what takes time, so do that in background
+            let layer = AVCaptureVideoPreviewLayer(session: cameraManager.session)
+            layer.videoGravity = .resizeAspectFill
             previewLayer = layer
             cameraConfigured = true
             swingState = .idle
-            await cameraManager.startSession()
+
+            // Start session on background thread so it doesn't block UI
+            Task.detached {
+                await cameraManager.startSession()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

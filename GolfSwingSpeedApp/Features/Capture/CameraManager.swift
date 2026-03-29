@@ -5,6 +5,7 @@ actor CameraManager {
     private let captureSession = AVCaptureSession()
     private var videoOutput: AVCaptureVideoDataOutput?
     private var movieOutput: AVCaptureMovieFileOutput?
+    private var photoOutput: AVCapturePhotoOutput?
     private var videoDevice: AVCaptureDevice?
 
     private(set) var isConfigured = false
@@ -16,10 +17,9 @@ actor CameraManager {
     private var recordingURL: URL?
     private var recordingDelegate: MovieRecordingDelegate?
 
-    var previewLayer: AVCaptureVideoPreviewLayer {
-        let layer = AVCaptureVideoPreviewLayer(session: captureSession)
-        layer.videoGravity = .resizeAspect
-        return layer
+    /// Get the capture session for creating a preview layer on the main thread.
+    nonisolated var session: AVCaptureSession {
+        captureSession
     }
 
     // MARK: - Configuration
@@ -68,6 +68,14 @@ actor CameraManager {
         }
         captureSession.addOutput(movieOut)
         movieOutput = movieOut
+
+        // Add photo output for calibration snapshots
+        let photoOut = AVCapturePhotoOutput()
+        guard captureSession.canAddOutput(photoOut) else {
+            throw CameraError.cannotAddOutput
+        }
+        captureSession.addOutput(photoOut)
+        photoOutput = photoOut
 
         captureSession.commitConfiguration()
         isConfigured = true
@@ -156,6 +164,19 @@ actor CameraManager {
         return url
     }
 
+    // MARK: - Photo Capture
+
+    func takePhoto() async throws -> UIImage {
+        guard let photoOutput else {
+            throw CameraError.cannotAddOutput
+        }
+
+        let settings = AVCapturePhotoSettings()
+        let delegate = PhotoCaptureDelegate()
+        photoOutput.capturePhoto(with: settings, delegate: delegate)
+        return try await delegate.waitForPhoto()
+    }
+
     // MARK: - Frame Timestamp Tracking
 
     func recordFrameTimestamp(_ timestamp: TimeInterval) {
@@ -227,6 +248,39 @@ final class MovieRecordingDelegate: NSObject, AVCaptureFileOutputRecordingDelega
     func waitForCompletion() async throws {
         try await withCheckedThrowingContinuation { continuation in
             self.completionHandler = continuation
+        }
+    }
+}
+
+// MARK: - Photo Capture Delegate
+
+final class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
+    private var photoContinuation: CheckedContinuation<UIImage, Error>?
+
+    func photoOutput(
+        _ output: AVCapturePhotoOutput,
+        didFinishProcessingPhoto photo: AVCapturePhoto,
+        error: Error?
+    ) {
+        if let error {
+            photoContinuation?.resume(throwing: error)
+            return
+        }
+
+        guard let data = photo.fileDataRepresentation(),
+              let image = UIImage(data: data) else {
+            photoContinuation?.resume(throwing: CameraError.recordingFailed(
+                NSError(domain: "CameraManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create image from photo data"])
+            ))
+            return
+        }
+
+        photoContinuation?.resume(returning: image)
+    }
+
+    func waitForPhoto() async throws -> UIImage {
+        try await withCheckedThrowingContinuation { continuation in
+            self.photoContinuation = continuation
         }
     }
 }
