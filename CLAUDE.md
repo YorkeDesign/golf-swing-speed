@@ -4,7 +4,7 @@
 
 Golf Swing Speed App is an iPhone app that measures golf club head speed using the device's built-in LiDAR scanner and 240fps camera — with no external hardware required. It targets speed training golfers who want instant, free swing speed feedback.
 
-**Status:** Pre-development — Research complete, entering prototype phase
+**Status:** Active development — Phase 2 automated pipeline (V0.02.03)
 **Platform:** iOS (iPhone 12 Pro and later — LiDAR required)
 **Language:** Swift
 **UI Framework:** SwiftUI
@@ -38,21 +38,26 @@ Golf Swing Speed App is an iPhone app that measures golf club head speed using t
 4. **Impact speed extraction** from calibrated impact zone position
 5. **Audio feedback** of speed + lag analysis results
 
-### Key Directories (planned)
+### Key Directories
 ```
 GolfSwingSpeedApp/
-├── App/                    — App entry point, navigation
+├── App/                    — App entry point, navigation, onboarding
 ├── Features/
-│   ├── Calibration/        — LiDAR + manual setup
-│   ├── Capture/            — AVFoundation 240fps camera
-│   ├── Tracking/           — CV / club head detection / ML model
-│   ├── SpeedCalc/          — Speed calculation pipeline
+│   ├── Calibration/        — Manual (timer + photo) + LiDAR calibration
+│   ├── Capture/            — 240fps camera, swing state machine, capture coordinator
+│   ├── Tracking/           — Optical flow, Kalman filter, tracking pipeline
+│   ├── SpeedCalc/          — Speed calculation, swing plane correction, adaptive sampling
 │   ├── AudioDetection/     — Swing detection via microphone
-│   ├── History/            — Swing data storage & display
+│   ├── LagAnalysis/        — 3D body pose lag angle analysis
+│   ├── FrameAnalysis/      — Manual frame-by-frame viewer
+│   ├── History/            — Swing data storage, charts, stats
+│   ├── Onboarding/         — First-launch tutorial
 │   └── Settings/
+├── Managers/               — Audio feedback, permissions
 ├── Models/                 — Data models, SwiftData schemas
-├── ML/                     — Core ML models, training scripts
-└── Utilities/              — Shared helpers
+├── ML/                     — Core ML models (future)
+├── Utilities/              — Constants, extensions
+└── GolfSwingSpeedAppTests/ — 44+ unit tests across 6 suites
 ```
 
 ## Coding Conventions
@@ -127,7 +132,7 @@ The project uses a three-tier semantic version format: **V`MAJOR`.`MINOR`.`PATCH
 | Minor | `0.XX.00` | Larger feature updates, significant refactors, new capabilities | **Yes — requires user approval before bumping** |
 | Major | `X.00.00` | Significant large builds, major milestones, breaking changes | **Yes — requires user approval before bumping** |
 
-- Current version: **V0.00.00** (pre-development)
+- Current version: **V0.02.03**
 - Version is tracked in the project and updated with each relevant commit
 - Patch resets to 00 on minor bump; patch and minor reset to 00 on major bump
 - When in doubt about bump level, ask before committing
