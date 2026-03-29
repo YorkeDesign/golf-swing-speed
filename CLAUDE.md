@@ -4,7 +4,7 @@
 
 Golf Swing Speed App is an iPhone app that measures golf club head speed using the device's built-in LiDAR scanner and 240fps camera — with no external hardware required. It targets speed training golfers who want instant, free swing speed feedback.
 
-**Status:** Active development — Phase 2 automated pipeline (V0.02.03)
+**Status:** Active development — Phase 2-4 feature complete (V0.02.10)
 **Platform:** iOS (iPhone 12 Pro and later — LiDAR required)
 **Language:** Swift
 **UI Framework:** SwiftUI
@@ -132,7 +132,7 @@ The project uses a three-tier semantic version format: **V`MAJOR`.`MINOR`.`PATCH
 | Minor | `0.XX.00` | Larger feature updates, significant refactors, new capabilities | **Yes — requires user approval before bumping** |
 | Major | `X.00.00` | Significant large builds, major milestones, breaking changes | **Yes — requires user approval before bumping** |
 
-- Current version: **V0.02.03**
+- Current version: **V0.02.10**
 - Version is tracked in the project and updated with each relevant commit
 - Patch resets to 00 on minor bump; patch and minor reset to 00 on major bump
 - When in doubt about bump level, ask before committing

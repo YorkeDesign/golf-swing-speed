@@ -174,9 +174,9 @@
 ### 3.1 Motion Blur Analysis
 - [x] Speed calculation from blur length formula (`SpeedCalculator.speedFromMotionBlur`)
 - [x] Fused speed estimate combining tracking + blur with confidence weighting (`SpeedCalculator.fusedSpeed`)
-- [ ] Implement blur streak length detection from frame pixel data
-- [ ] Use blur direction to validate tracking direction
-- [ ] Test accuracy improvement vs frame-to-frame only
+- [x] Implement blur streak length detection from frame pixel data (`MotionBlurAnalyser.swift`)
+- [x] Use blur direction to validate tracking direction (`MotionBlurAnalyser.directionAgreement`)
+- [ ] Test accuracy improvement vs frame-to-frame only *(requires device)*
 
 ### 3.2 Audio Swing Detection
 - [x] Implement AVAudioEngine real-time audio monitoring (`SwingAudioDetector.swift`)
@@ -187,7 +187,7 @@
 - [x] Detect swing completion — energy decay to ambient baseline
 - [x] Ambient baseline tracking (slow-moving average)
 - [x] State machine: monitoring → swingDetected → impactDetected → swingEnding
-- [ ] Spectral analysis (FFT) to distinguish wind from whoosh
+- [x] Spectral analysis (FFT) to distinguish wind from whoosh (vDSP_fft_zrip + band classification)
 - [ ] CoreML classifier for golf-specific sound events
 - [ ] Test in various environments (range, backyard, indoor)
 - [ ] Measure power savings vs continuous video monitoring
@@ -196,8 +196,8 @@
 ### 3.3 Sensor Fusion
 - [x] Camera tracking + audio impact timing combined in analysis pipeline
 - [x] Confidence scoring combining tracking + blur agreement (`SpeedCalculator.confidenceScore`)
-- [ ] Use IMU (accelerometer) to detect/compensate for camera movement
-- [ ] A/B test accuracy: camera-only vs fused approach
+- [x] Use IMU (accelerometer) to detect camera movement (`CameraMovementDetector.swift`)
+- [ ] A/B test accuracy: camera-only vs fused approach *(requires device)*
 
 ### 3.4 Lag Angle / Wrist Release Detection
 - [x] Implement Apple Vision `VNDetectHumanBodyPose3DRequest` integration (`LagAnalyser.swift`)
@@ -214,10 +214,10 @@
 - [x] Right-handed / left-handed golfer support (`isRightHanded` parameter)
 - [x] Lead arm angle to vertical calculation for phase classification
 - [x] Store lag data in SwiftData alongside speed data per swing
-- [ ] Build swing replay overlay (draw arm/shaft lines, color-code, show angle)
+- [x] Build swing replay overlay (`SwingReplayOverlay.swift` — skeleton, shaft, lag arc, speed badge)
 - [ ] Display lag metrics in swing detail view (wired to LagMetrics data)
-- [ ] Add comparative view: show lag metrics side-by-side between two swings
-- [ ] **Milestone:** Swing replay shows arm/shaft overlay with lag angle and casting detection
+- [x] Add comparative view (`SwingComparisonView.swift` — side-by-side speed curves + metrics)
+- [ ] **Milestone:** Swing replay shows arm/shaft overlay *(requires device testing)*
 
 ### 3.5 Adaptive Frame Sampling
 - [x] Implement swing phase classification from motion + timing (`AdaptiveFrameSampler.swift`)
@@ -249,7 +249,7 @@
 - [x] Build swing detail view (speed curve chart, lag metrics)
 - [x] Implement session grouping (swings from same practice session via sessionId)
 - [x] Add basic statistics (average speed, max speed, swing count)
-- [ ] Trend over time chart
+- [x] Trend over time chart (`SpeedTrendChart.swift` — line chart with avg/best/last-3)
 - [ ] Video playback in swing detail
 
 ### 4.2 Speed Curve Visualization
@@ -268,13 +268,13 @@
 - [x] Club type selection (driver, iron, wedge — for organization)
 
 ### 4.4 UI Polish
-- [ ] Design app icon
+- [x] Design app icon (generated speedometer + golf ball icon)
 - [x] Build onboarding flow (4-page intro: speed, camera, calibration, audio)
 - [x] Add haptic feedback for state transitions (via AudioFeedbackManager)
-- [ ] Build loading/processing state UI
-- [ ] Handle edge cases (no LiDAR, low light warning, thermal warning)
+- [x] Build loading/processing state UI (`ProcessingOverlayView.swift` + `AnalysisResultView.swift`)
+- [x] Handle edge cases (no LiDAR fallback, camera movement warning)
 - [ ] Accessibility support (VoiceOver, Dynamic Type)
-- [ ] Dark mode support
+- [ ] Dark mode support — app uses dark theme on capture screen, light on history/settings
 
 ---
 
