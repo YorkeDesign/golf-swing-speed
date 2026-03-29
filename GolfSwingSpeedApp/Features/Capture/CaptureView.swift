@@ -18,6 +18,7 @@ struct CaptureView: View {
     @State private var cameraManager = CameraManager()
     @State private var permissionsManager = PermissionsManager()
     @State private var calibrationManager = CalibrationManager()
+    @State private var audioFeedback = AudioFeedbackManager()
     @State private var previewLayer: AVCaptureVideoPreviewLayer?
     @State private var cameraConfigured = false
 
@@ -102,6 +103,7 @@ struct CaptureView: View {
                     ) { speed, profile in
                         if let speed {
                             lastSpeedMph = speed
+                            audioFeedback.speedResult(mph: speed)
                         }
                         saveSwingRecord(speed: speed, profile: profile)
                     }
@@ -349,6 +351,7 @@ struct CaptureView: View {
                 lastRecordingURL = url
                 lastFrameCount = timestamps.count
                 swingState = .result
+                audioFeedback.swingCaptured()
 
                 // Open frame analysis view for manual speed measurement
                 showFrameAnalysis = true

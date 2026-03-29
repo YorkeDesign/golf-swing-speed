@@ -4,13 +4,16 @@ import UIKit
 @Observable
 final class AudioFeedbackManager {
     var mode: AudioFeedbackMode = .beep
+    var hapticEnabled = true
 
     private let synthesizer = AVSpeechSynthesizer()
     private let hapticNotification = UINotificationFeedbackGenerator()
     private let hapticImpact = UIImpactFeedbackGenerator(style: .medium)
+    private var tonePlayer: TonePlayer?
 
     init() {
         configureAudioSession()
+        tonePlayer = TonePlayer()
     }
 
     // MARK: - Audio Session
@@ -20,7 +23,7 @@ final class AudioFeedbackManager {
         try? session.setCategory(
             .playback,
             mode: .voicePrompt,
-            options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers, .allowBluetooth]
+            options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers, .allowBluetoothA2DP]
         )
         try? session.setActive(true)
     }
@@ -30,8 +33,8 @@ final class AudioFeedbackManager {
     func playerDetected() {
         switch mode {
         case .beep:
-            playTone(frequency: 200, duration: 0.1)
-            hapticImpact.impactOccurred()
+            tonePlayer?.play(frequency: 200, duration: 0.1)
+            haptic(.impact)
         case .voice:
             speak("Player detected")
         case .off:
@@ -42,12 +45,12 @@ final class AudioFeedbackManager {
     func ready() {
         switch mode {
         case .beep:
-            playTone(frequency: 400, duration: 0.08)
+            tonePlayer?.play(frequency: 400, duration: 0.08)
             Task {
                 try? await Task.sleep(for: .milliseconds(120))
-                playTone(frequency: 600, duration: 0.08)
+                tonePlayer?.play(frequency: 600, duration: 0.08)
             }
-            hapticNotification.notificationOccurred(.success)
+            haptic(.success)
         case .voice:
             speak("Ready")
         case .off:
@@ -58,8 +61,8 @@ final class AudioFeedbackManager {
     func swingCaptured() {
         switch mode {
         case .beep:
-            playTone(frequency: 800, duration: 0.15)
-            hapticNotification.notificationOccurred(.success)
+            tonePlayer?.play(frequency: 800, duration: 0.15)
+            haptic(.success)
         case .voice:
             speak("Swing captured")
         case .off:
@@ -74,16 +77,16 @@ final class AudioFeedbackManager {
         switch mode {
         case .beep:
             // Triple ascending beep then speak the number
-            playTone(frequency: 500, duration: 0.06)
+            tonePlayer?.play(frequency: 500, duration: 0.06)
             Task {
                 try? await Task.sleep(for: .milliseconds(100))
-                playTone(frequency: 700, duration: 0.06)
+                tonePlayer?.play(frequency: 700, duration: 0.06)
                 try? await Task.sleep(for: .milliseconds(100))
-                playTone(frequency: 900, duration: 0.06)
+                tonePlayer?.play(frequency: 900, duration: 0.06)
                 try? await Task.sleep(for: .milliseconds(200))
                 speak("\(formatted) \(unit.displayName)")
             }
-            hapticNotification.notificationOccurred(.success)
+            haptic(.success)
         case .voice:
             speak("\(formatted) \(unit.displayName)")
         case .off:
@@ -94,12 +97,12 @@ final class AudioFeedbackManager {
     func errorSwingNotDetected() {
         switch mode {
         case .beep:
-            playTone(frequency: 600, duration: 0.1)
+            tonePlayer?.play(frequency: 600, duration: 0.1)
             Task {
                 try? await Task.sleep(for: .milliseconds(150))
-                playTone(frequency: 300, duration: 0.15)
+                tonePlayer?.play(frequency: 300, duration: 0.15)
             }
-            hapticNotification.notificationOccurred(.error)
+            haptic(.error)
         case .voice:
             speak("Swing not detected, try again")
         case .off:
@@ -113,10 +116,10 @@ final class AudioFeedbackManager {
             for i in 0..<3 {
                 Task {
                     try? await Task.sleep(for: .milliseconds(i * 100))
-                    playTone(frequency: 500, duration: 0.05)
+                    tonePlayer?.play(frequency: 500, duration: 0.05)
                 }
             }
-            hapticNotification.notificationOccurred(.warning)
+            haptic(.warning)
         case .voice:
             speak("Tracking lost, please retry")
         case .off:
@@ -127,8 +130,8 @@ final class AudioFeedbackManager {
     func adjustPosition() {
         switch mode {
         case .beep:
-            playTone(frequency: 400, duration: 0.2)
-            hapticNotification.notificationOccurred(.warning)
+            tonePlayer?.play(frequency: 400, duration: 0.2)
+            haptic(.warning)
         case .voice:
             speak("Adjust position, stand in frame")
         case .off:
@@ -140,14 +143,14 @@ final class AudioFeedbackManager {
         switch mode {
         case .beep:
             // Rising C-E-G chime
-            playTone(frequency: 523, duration: 0.12)
+            tonePlayer?.play(frequency: 523, duration: 0.12)
             Task {
                 try? await Task.sleep(for: .milliseconds(140))
-                playTone(frequency: 659, duration: 0.12)
+                tonePlayer?.play(frequency: 659, duration: 0.12)
                 try? await Task.sleep(for: .milliseconds(140))
-                playTone(frequency: 784, duration: 0.2)
+                tonePlayer?.play(frequency: 784, duration: 0.2)
             }
-            hapticNotification.notificationOccurred(.success)
+            haptic(.success)
         case .voice:
             speak("Calibration complete")
         case .off:
@@ -165,9 +168,75 @@ final class AudioFeedbackManager {
         synthesizer.speak(utterance)
     }
 
-    private func playTone(frequency: Double, duration: Double) {
-        // Phase 1: Use system sound as placeholder
-        // Phase 2: Replace with generated tones or bundled .wav files
-        AudioServicesPlaySystemSound(SystemSoundID(1057))
+    private enum HapticType {
+        case impact, success, warning, error
+    }
+
+    private func haptic(_ type: HapticType) {
+        guard hapticEnabled else { return }
+        switch type {
+        case .impact:
+            hapticImpact.impactOccurred()
+        case .success:
+            hapticNotification.notificationOccurred(.success)
+        case .warning:
+            hapticNotification.notificationOccurred(.warning)
+        case .error:
+            hapticNotification.notificationOccurred(.error)
+        }
+    }
+}
+
+// MARK: - Tone Generator
+
+/// Generates sine wave tones using AVAudioEngine for low-latency beep feedback.
+final class TonePlayer {
+    private let engine = AVAudioEngine()
+    private let playerNode = AVAudioPlayerNode()
+    private let sampleRate: Double = 44100
+
+    init() {
+        engine.attach(playerNode)
+        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
+        engine.connect(playerNode, to: engine.mainMixerNode, format: format)
+
+        do {
+            try engine.start()
+        } catch {
+            // Audio engine failed to start — tones won't play but app continues
+        }
+    }
+
+    func play(frequency: Double, duration: Double, volume: Float = 0.5) {
+        let frameCount = AVAudioFrameCount(sampleRate * duration)
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
+            return
+        }
+
+        buffer.frameLength = frameCount
+
+        guard let channelData = buffer.floatChannelData?[0] else { return }
+
+        // Generate sine wave with fade-in/fade-out envelope to avoid clicks
+        let fadeFrames = min(Int(sampleRate * 0.005), Int(frameCount) / 4) // 5ms fade
+        for i in 0..<Int(frameCount) {
+            let sample = sin(2.0 * .pi * frequency * Double(i) / sampleRate)
+
+            // Apply envelope
+            var envelope: Double = 1.0
+            if i < fadeFrames {
+                envelope = Double(i) / Double(fadeFrames) // Fade in
+            } else if i > Int(frameCount) - fadeFrames {
+                envelope = Double(Int(frameCount) - i) / Double(fadeFrames) // Fade out
+            }
+
+            channelData[i] = Float(sample * envelope) * volume
+        }
+
+        playerNode.scheduleBuffer(buffer, completionHandler: nil)
+        if !playerNode.isPlaying {
+            playerNode.play()
+        }
     }
 }
