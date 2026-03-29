@@ -32,6 +32,7 @@ struct CaptureView: View {
     @State private var analysisProgress: Double = 0
     @State private var analysisPhaseLabel: String = ""
     @State private var showAutoAnalysisResult = false
+    @State private var cameraMovementDetector = CameraMovementDetector()
 
     var body: some View {
         NavigationStack {
@@ -85,6 +86,19 @@ struct CaptureView: View {
                         // Recording info
                         if let frameCount = lastFrameCount {
                             recordingInfo(frameCount: frameCount)
+                        }
+
+                        // Camera movement warning
+                        if !cameraMovementDetector.isStable {
+                            HStack(spacing: 6) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.yellow)
+                                Text(cameraMovementDetector.warningMessage ?? "Camera moved")
+                                    .font(.caption)
+                                    .foregroundStyle(.yellow)
+                            }
+                            .padding(8)
+                            .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
                         }
 
                         // Error message
@@ -400,6 +414,9 @@ struct CaptureView: View {
                 await cameraManager.startSession()
             }
 
+            // Start monitoring camera stability
+            cameraMovementDetector.startMonitoring()
+
             // Initialise capture coordinator for auto-capture mode
             let coordinator = SwingCaptureCoordinator(
                 cameraManager: cameraManager,
@@ -422,11 +439,16 @@ struct CaptureView: View {
                 let timestamps = await cameraManager.capturedFrameTimestamps
                 lastRecordingURL = url
                 lastFrameCount = timestamps.count
-                swingState = .result
                 audioFeedback.swingCaptured()
 
-                // Open frame analysis view for manual speed measurement
-                showFrameAnalysis = true
+                // Run automated analysis if calibrated, otherwise show manual frame viewer
+                if calibrationManager.isCalibrated {
+                    swingState = .processing
+                    await runAutomatedAnalysis(videoURL: url)
+                } else {
+                    swingState = .result
+                    showFrameAnalysis = true
+                }
             } catch {
                 errorMessage = error.localizedDescription
                 swingState = .idle
@@ -442,6 +464,51 @@ struct CaptureView: View {
             } catch {
                 errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    // MARK: - Automated Analysis
+
+    private func runAutomatedAnalysis(videoURL: URL) async {
+        guard let calibration = calibrationManager.calibrationData else {
+            swingState = .result
+            showFrameAnalysis = true
+            return
+        }
+
+        let engine = PostCaptureAnalysisEngine()
+        await engine.setProgressCallback { phase, progress in
+            Task { @MainActor in
+                analysisPhaseLabel = phase.rawValue
+                analysisProgress = progress
+            }
+        }
+
+        do {
+            let result = try await engine.analyse(
+                videoURL: videoURL,
+                calibration: calibration,
+                audioImpactTimestamp: nil,
+                isRightHanded: true
+            )
+
+            lastSpeedMph = result.impactSpeedMph
+            swingState = .result
+
+            if let speed = result.impactSpeedMph {
+                audioFeedback.speedResult(mph: speed)
+            }
+
+            // Save the swing record with analysis results
+            saveSwingRecord(
+                speed: result.impactSpeedMph,
+                profile: result.speedProfile
+            )
+        } catch {
+            errorMessage = "Analysis failed: \(error.localizedDescription)"
+            swingState = .result
+            // Fall back to manual frame analysis
+            showFrameAnalysis = true
         }
     }
     // MARK: - Save Swing Record

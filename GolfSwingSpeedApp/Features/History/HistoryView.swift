@@ -38,6 +38,15 @@ struct HistoryView: View {
                 }
             }
 
+            // Trend chart
+            if swingsWithSpeed.count >= 2 {
+                Section {
+                    SpeedTrendChart(swings: Array(swingsWithSpeed))
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+            }
+
             // Swings
             Section {
                 ForEach(swings) { swing in
