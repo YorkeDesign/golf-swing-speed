@@ -249,4 +249,5 @@ enum TrackingSource: String, Codable {
     case opticalFlow
     case kalmanPrediction
     case visionTracking
+    case manual
 }

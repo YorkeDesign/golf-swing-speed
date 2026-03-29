@@ -7,6 +7,7 @@ struct CaptureView: View {
     @State private var lastFrameCount: Int?
     @State private var lastRecordingURL: URL?
     @State private var showCalibration = false
+    @State private var showFrameAnalysis = false
     @State private var selectedClub: ClubType = .driver
     @State private var errorMessage: String?
 
@@ -88,6 +89,18 @@ struct CaptureView: View {
             }
             .sheet(isPresented: $showCalibration) {
                 ManualCalibrationView(calibrationManager: calibrationManager)
+            }
+            .fullScreenCover(isPresented: $showFrameAnalysis) {
+                if let url = lastRecordingURL {
+                    FrameAnalysisView(
+                        videoURL: url,
+                        calibration: calibrationManager.calibrationData
+                    ) { speed, profile in
+                        if let speed {
+                            lastSpeedMph = speed
+                        }
+                    }
+                }
             }
             .task {
                 await setupCamera()
@@ -330,12 +343,10 @@ struct CaptureView: View {
                 let timestamps = await cameraManager.capturedFrameTimestamps
                 lastRecordingURL = url
                 lastFrameCount = timestamps.count
-                swingState = .processing
-
-                // Simulated speed for now — real analysis pipeline comes in Phase 2
-                try? await Task.sleep(for: .seconds(1))
-                lastSpeedMph = Double.random(in: 80...110)
                 swingState = .result
+
+                // Open frame analysis view for manual speed measurement
+                showFrameAnalysis = true
             } catch {
                 errorMessage = error.localizedDescription
                 swingState = .idle

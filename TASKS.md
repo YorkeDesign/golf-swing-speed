@@ -50,12 +50,12 @@
 - [ ] Test with real golf swings to tune thresholds
 
 ### 1.5 Manual Frame Analysis (Prototype Speed Calc)
-- [ ] Build frame-by-frame viewer for captured video
-- [ ] Allow user to tap club head position in each frame
-- [ ] Calculate pixel displacement between marked frames
-- [ ] Convert to real-world speed using calibration
-- [ ] Display speed result
-- [ ] **Milestone:** First speed measurement from manually marked frames
+- [x] Build frame-by-frame viewer for captured video
+- [x] Allow user to tap club head position in each frame
+- [x] Calculate pixel displacement between marked frames
+- [x] Convert to real-world speed using calibration
+- [x] Display speed result
+- [ ] **Milestone:** First speed measurement from manually marked frames *(requires device testing)*
 
 ---
 
