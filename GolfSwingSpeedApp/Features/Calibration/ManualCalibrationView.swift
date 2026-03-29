@@ -1,8 +1,7 @@
 import SwiftUI
 
 struct ManualCalibrationView: View {
-    @Binding var isCalibrated: Bool
-    @State private var calibrationManager = CalibrationManager()
+    @Bindable var calibrationManager: CalibrationManager
     @State private var distanceInput = ""
     @State private var distanceUnit: DistanceInputUnit = .metres
     @Environment(\.dismiss) private var dismiss
@@ -24,7 +23,6 @@ struct ManualCalibrationView: View {
                 // Done button
                 if calibrationManager.isCalibrated {
                     Button {
-                        isCalibrated = true
                         dismiss()
                     } label: {
                         Text("Done")
@@ -194,5 +192,5 @@ enum DistanceInputUnit: String, CaseIterable {
 }
 
 #Preview {
-    ManualCalibrationView(isCalibrated: .constant(false))
+    ManualCalibrationView(calibrationManager: CalibrationManager())
 }

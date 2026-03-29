@@ -1,55 +1,160 @@
 import SwiftUI
+import AVFoundation
 
 struct CaptureView: View {
     @State private var swingState: SwingState = .idle
     @State private var lastSpeedMph: Double?
-    @State private var isCalibrated = false
+    @State private var lastFrameCount: Int?
+    @State private var lastRecordingURL: URL?
     @State private var showCalibration = false
+    @State private var selectedClub: ClubType = .driver
     @State private var errorMessage: String?
+
+    @State private var cameraManager = CameraManager()
+    @State private var permissionsManager = PermissionsManager()
+    @State private var calibrationManager = CalibrationManager()
+    @State private var previewLayer: AVCaptureVideoPreviewLayer?
+    @State private var cameraConfigured = false
 
     var body: some View {
         NavigationStack {
             ZStack {
-                // Camera preview placeholder
-                Color.black
+                // Camera preview or black placeholder
+                cameraPreviewContent
                     .ignoresSafeArea()
 
-                // Overlay content
-                VStack {
-                    Spacer()
-
-                    // State indicator
-                    stateIndicator
-
-                    // Speed display
-                    if let speed = lastSpeedMph {
-                        speedDisplay(speed: speed)
-                    }
-
-                    Spacer()
-
-                    // Bottom controls
-                    bottomControls
+                // Permission overlay (shown when camera not authorized)
+                if !permissionsManager.cameraAuthorized {
+                    permissionOverlay
                 }
-                .padding()
+
+                // Main overlay content (shown when camera authorized)
+                if permissionsManager.cameraAuthorized {
+                    VStack {
+                        // Calibration status badge
+                        HStack {
+                            CalibrationOverlay(calibrationData: calibrationManager.calibrationData)
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 60)
+
+                        Spacer()
+
+                        // State indicator
+                        stateIndicator
+
+                        // Speed display
+                        if let speed = lastSpeedMph {
+                            speedDisplay(speed: speed)
+                        }
+
+                        // Recording info
+                        if let frameCount = lastFrameCount {
+                            recordingInfo(frameCount: frameCount)
+                        }
+
+                        // Error message
+                        if let error = errorMessage {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                                .padding(8)
+                                .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+                        }
+
+                        Spacer()
+
+                        // Bottom controls
+                        bottomControls
+                    }
+                    .padding()
+                }
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Calibrate") {
-                        showCalibration = true
+                    if permissionsManager.cameraAuthorized {
+                        Button("Calibrate") {
+                            showCalibration = true
+                        }
+                        .tint(.white)
                     }
-                    .tint(.white)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     stateLabel
                 }
             }
             .sheet(isPresented: $showCalibration) {
-                ManualCalibrationView(isCalibrated: $isCalibrated)
+                ManualCalibrationView(calibrationManager: calibrationManager)
+            }
+            .task {
+                await setupCamera()
             }
         }
+    }
+
+    // MARK: - Camera Preview
+
+    @ViewBuilder
+    private var cameraPreviewContent: some View {
+        if let previewLayer {
+            CameraPreviewView(previewLayer: previewLayer)
+        } else {
+            Color.black
+        }
+    }
+
+    // MARK: - Permission Overlay
+
+    private var permissionOverlay: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "camera.fill")
+                .font(.system(size: 60))
+                .foregroundStyle(.white.opacity(0.6))
+
+            Text("Camera Access Required")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundStyle(.white)
+
+            Text("Golf Swing Speed App needs access to your camera to record swings at 240fps for speed measurement.")
+                .font(.body)
+                .foregroundStyle(.white.opacity(0.8))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            if AVCaptureDevice.authorizationStatus(for: .video) == .denied {
+                VStack(spacing: 12) {
+                    Text("Camera access was denied. Please enable it in Settings.")
+                        .font(.callout)
+                        .foregroundStyle(.yellow)
+                        .multilineTextAlignment(.center)
+
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            } else {
+                Button("Enable Camera") {
+                    Task {
+                        _ = await permissionsManager.requestCameraPermission()
+                        _ = await permissionsManager.requestMicrophonePermission()
+                        if permissionsManager.cameraAuthorized {
+                            await setupCamera()
+                        }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.black)
     }
 
     // MARK: - State Indicator
@@ -74,9 +179,14 @@ struct CaptureView: View {
                 .foregroundStyle(.green)
 
         case .swingInProgress:
-            Label("Capturing...", systemImage: "record.circle")
-                .font(.headline)
-                .foregroundStyle(.red)
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(.red)
+                    .frame(width: 12, height: 12)
+                Text("Recording...")
+                    .font(.headline)
+                    .foregroundStyle(.red)
+            }
 
         case .swingComplete, .processing:
             ProgressView("Analysing swing...")
@@ -104,11 +214,22 @@ struct CaptureView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
     }
 
+    // MARK: - Recording Info
+
+    private func recordingInfo(frameCount: Int) -> some View {
+        Text("\(frameCount) frames captured")
+            .font(.subheadline)
+            .fontWeight(.medium)
+            .foregroundStyle(.white.opacity(0.8))
+            .padding(8)
+            .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+    }
+
     // MARK: - Bottom Controls
 
     private var bottomControls: some View {
         HStack(spacing: 40) {
-            if !isCalibrated {
+            if !calibrationManager.isCalibrated {
                 Button {
                     showCalibration = true
                 } label: {
@@ -122,9 +243,9 @@ struct CaptureView: View {
                 }
             }
 
-            // Manual record button (Phase 1 — before auto-detection)
+            // Record button
             Button {
-                toggleRecording()
+                Task { await toggleRecording() }
             } label: {
                 Circle()
                     .fill(swingState == .swingInProgress ? .red : .white)
@@ -142,14 +263,14 @@ struct CaptureView: View {
             Menu {
                 ForEach(ClubType.allCases) { club in
                     Button(club.displayName) {
-                        // Set selected club
+                        selectedClub = club
                     }
                 }
             } label: {
                 VStack {
                     Image(systemName: "figure.golf")
                         .font(.title)
-                    Text("Driver")
+                    Text(selectedClub.displayName)
                         .font(.caption)
                 }
                 .foregroundStyle(.white)
@@ -181,19 +302,55 @@ struct CaptureView: View {
         }
     }
 
-    // MARK: - Actions
+    // MARK: - Camera Setup
 
-    private func toggleRecording() {
+    private func setupCamera() async {
+        permissionsManager.checkPermissions()
+        guard permissionsManager.cameraAuthorized else { return }
+
+        do {
+            try await cameraManager.configure()
+            let layer = await cameraManager.previewLayer
+            previewLayer = layer
+            cameraConfigured = true
+            swingState = .idle
+            await cameraManager.startSession()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Recording
+
+    private func toggleRecording() async {
         if swingState == .swingInProgress {
-            swingState = .processing
-            // Simulate processing delay for Phase 1
-            Task {
+            // Stop recording
+            do {
+                let url = try await cameraManager.stopRecording()
+                let timestamps = await cameraManager.capturedFrameTimestamps
+                lastRecordingURL = url
+                lastFrameCount = timestamps.count
+                swingState = .processing
+
+                // Simulated speed for now — real analysis pipeline comes in Phase 2
                 try? await Task.sleep(for: .seconds(1))
                 lastSpeedMph = Double.random(in: 80...110)
                 swingState = .result
+            } catch {
+                errorMessage = error.localizedDescription
+                swingState = .idle
             }
         } else {
-            swingState = .swingInProgress
+            // Start recording
+            do {
+                errorMessage = nil
+                lastSpeedMph = nil
+                lastFrameCount = nil
+                _ = try await cameraManager.startRecording()
+                swingState = .swingInProgress
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 }

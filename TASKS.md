@@ -18,28 +18,28 @@
 ## Phase 1 — Prototype (Basic Capture & Manual Measurement)
 
 ### 1.1 Project Setup
-- [ ] Create Xcode project (SwiftUI, iOS 17.0+)
-- [ ] Set up project structure (Features/, Models/, ML/, Utilities/)
-- [ ] Configure Info.plist for camera, microphone, and LiDAR permissions
-- [ ] Set up SwiftData schema for swing records
-- [ ] Add basic navigation (tab bar or sidebar)
+- [x] Create Xcode project (SwiftUI, iOS 17.0+)
+- [x] Set up project structure (Features/, Models/, ML/, Utilities/)
+- [x] Configure Info.plist for camera, microphone, and LiDAR permissions
+- [x] Set up SwiftData schema for swing records
+- [x] Add basic navigation (tab bar or sidebar)
 
 ### 1.2 High-FPS Camera Capture
-- [ ] Implement AVCaptureSession for 240fps @ 1080p
-- [ ] Build camera preview view (SwiftUI wrapper for AVCaptureVideoPreviewLayer)
-- [ ] Implement CMSampleBuffer capture and storage
-- [ ] Add recording start/stop controls
-- [ ] Test frame timing accuracy (verify consistent 240fps delivery)
-- [ ] Implement video clip saving to disk
-- [ ] Handle camera permission request flow
+- [x] Implement AVCaptureSession for 240fps @ 1080p
+- [x] Build camera preview view (SwiftUI wrapper for AVCaptureVideoPreviewLayer)
+- [x] Implement CMSampleBuffer capture and storage
+- [x] Add recording start/stop controls
+- [ ] Test frame timing accuracy (verify consistent 240fps delivery) *(requires device)*
+- [x] Implement video clip saving to disk
+- [x] Handle camera permission request flow
 
 ### 1.3 Manual Calibration (Tap-to-Set)
-- [ ] Build calibration UI — user taps two reference points on screen
-- [ ] User enters known distance between points (e.g., ball to feet)
-- [ ] Calculate pixels-per-metre scale factor from input
-- [ ] User taps to set impact zone position
-- [ ] Store calibration data with session
-- [ ] Allow recalibration without restarting
+- [x] Build calibration UI — user taps two reference points on screen
+- [x] User enters known distance between points (e.g., ball to feet)
+- [x] Calculate pixels-per-metre scale factor from input
+- [x] User taps to set impact zone position
+- [x] Store calibration data with session
+- [x] Allow recalibration without restarting
 
 ### 1.4 Basic Motion Detection
 - [x] Implement frame differencing to detect motion onset (`MotionDetector.swift`)
