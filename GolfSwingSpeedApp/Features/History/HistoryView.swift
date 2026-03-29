@@ -3,7 +3,6 @@ import SwiftData
 
 struct HistoryView: View {
     @Query(sort: \SwingRecord.timestamp, order: .reverse) private var swings: [SwingRecord]
-    @State private var selectedClubFilter: ClubType?
 
     var body: some View {
         NavigationStack {
@@ -32,15 +31,72 @@ struct HistoryView: View {
 
     private var swingList: some View {
         List {
-            ForEach(swings) { swing in
-                NavigationLink {
-                    SwingDetailView(swing: swing)
-                } label: {
-                    SwingRowView(swing: swing)
+            // Stats summary
+            if swingsWithSpeed.count >= 2 {
+                Section {
+                    statsHeader
+                }
+            }
+
+            // Swings
+            Section {
+                ForEach(swings) { swing in
+                    NavigationLink {
+                        SwingDetailView(swing: swing)
+                    } label: {
+                        SwingRowView(swing: swing)
+                    }
                 }
             }
         }
         .listStyle(.plain)
+    }
+
+    // MARK: - Stats Header
+
+    private var swingsWithSpeed: [SwingRecord] {
+        swings.filter { $0.impactSpeedMph != nil }
+    }
+
+    private var statsHeader: some View {
+        let speeds = swingsWithSpeed.compactMap { $0.impactSpeedMph }
+        let avg = speeds.reduce(0, +) / Double(speeds.count)
+        let maxSpeed = speeds.max() ?? 0
+
+        return HStack(spacing: 0) {
+            StatCard(title: "Average", value: "\(avg.formattedSpeed)", unit: "mph", color: .blue)
+            StatCard(title: "Max", value: "\(maxSpeed.formattedSpeed)", unit: "mph", color: .green)
+            StatCard(title: "Swings", value: "\(swingsWithSpeed.count)", unit: "total", color: .orange)
+        }
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
+    }
+}
+
+// MARK: - Stat Card
+
+struct StatCard: View {
+    let title: String
+    let value: String
+    let unit: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundStyle(color)
+                .monospacedDigit()
+            Text(unit)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
     }
 }
 

@@ -12,27 +12,32 @@ struct GolfSwingSpeedApp: App {
 }
 
 struct ContentView: View {
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var selectedTab: AppTab = .capture
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            CaptureView()
-                .tabItem {
-                    Label("Capture", systemImage: "camera.fill")
-                }
-                .tag(AppTab.capture)
+        if !hasCompletedOnboarding {
+            OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
+        } else {
+            TabView(selection: $selectedTab) {
+                CaptureView()
+                    .tabItem {
+                        Label("Capture", systemImage: "camera.fill")
+                    }
+                    .tag(AppTab.capture)
 
-            HistoryView()
-                .tabItem {
-                    Label("History", systemImage: "clock.fill")
-                }
-                .tag(AppTab.history)
+                HistoryView()
+                    .tabItem {
+                        Label("History", systemImage: "clock.fill")
+                    }
+                    .tag(AppTab.history)
 
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape.fill")
-                }
-                .tag(AppTab.settings)
+                SettingsView()
+                    .tabItem {
+                        Label("Settings", systemImage: "gearshape.fill")
+                    }
+                    .tag(AppTab.settings)
+            }
         }
     }
 }
