@@ -21,6 +21,10 @@ struct CaptureView: View {
     @State private var audioFeedback = AudioFeedbackManager()
     @State private var previewLayer: AVCaptureVideoPreviewLayer?
     @State private var cameraConfigured = false
+    @State private var showDebugOverlay = false
+    @State private var debugHeatmap: [[Double]] = []
+    @State private var debugMotionMagnitude: Double = 0
+    @State private var debugCentroid: CGPoint?
 
     var body: some View {
         NavigationStack {
@@ -28,6 +32,16 @@ struct CaptureView: View {
                 // Camera preview or black placeholder
                 cameraPreviewContent
                     .ignoresSafeArea()
+                    .overlay {
+                        if showDebugOverlay {
+                            MotionDebugOverlay(
+                                heatmap: debugHeatmap,
+                                motionMagnitude: debugMotionMagnitude,
+                                centroid: debugCentroid,
+                                threshold: AppConstants.SwingDetection.motionOnsetThreshold
+                            )
+                        }
+                    }
 
                 // Permission overlay (shown when camera not authorized)
                 if !permissionsManager.cameraAuthorized {
@@ -89,7 +103,15 @@ struct CaptureView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    stateLabel
+                    HStack(spacing: 8) {
+                        Button {
+                            showDebugOverlay.toggle()
+                        } label: {
+                            Image(systemName: showDebugOverlay ? "waveform.circle.fill" : "waveform.circle")
+                                .foregroundStyle(showDebugOverlay ? .green : .white)
+                        }
+                        stateLabel
+                    }
                 }
             }
             .sheet(isPresented: $showCalibration) {
