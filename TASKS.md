@@ -63,30 +63,30 @@
 
 ### 2.1 Scene & Equipment Calibration
 #### Phase 1: Scene Setup
-- [ ] Implement ARKit session for scene scanning
-- [ ] Detect ground plane via ARKit plane detection
-- [ ] Implement raycasting — user taps to set calibration points in 3D space
-- [ ] Calculate real-world distance between calibration points using ARKit
-- [ ] Derive pixels-per-metre scale factor from LiDAR measurements
+- [x] Implement ARKit session for scene scanning (`LiDARCalibrationManager.swift`)
+- [x] Detect ground plane via ARKit plane detection (ARPlaneAnchor classification)
+- [x] Implement raycasting — user taps to set calibration points in 3D space
+- [x] Calculate real-world distance between calibration points using ARKit
+- [x] Derive pixels-per-metre scale factor from LiDAR measurements
 - [ ] Build calibration UI with visual feedback (AR overlay showing detected surfaces)
-- [ ] Handle LiDAR unavailability gracefully (fallback to manual calibration)
-- [ ] Test accuracy at various distances (1.5m, 2m, 2.5m, 3m)
+- [x] Handle LiDAR unavailability gracefully (fallback to manual calibration)
+- [ ] Test accuracy at various distances (1.5m, 2m, 2.5m, 3m) *(requires device)*
 
 #### Phase 2: Address Position Analysis (player stands at address with club)
-- [ ] Implement `VNDetectHumanBodyPose3DRequest` for 3D body skeleton (17 joints in metres)
-- [ ] Extract lead arm landmarks: shoulder, elbow, wrist in 3D world coordinates
+- [x] Implement `VNDetectHumanBodyPose3DRequest` for 3D body skeleton (`LiDARCalibrationManager.analyseAddressPosition`)
+- [x] Extract lead arm landmarks: shoulder, elbow, wrist in 3D world coordinates
 - [ ] Detect club head at address via CV model (static = no blur, easier detection)
-- [ ] Get club head 3D position from LiDAR depth at detected location
+- [x] Get club head 3D position from LiDAR depth at detected location (`depthAtPoint`)
 - [ ] Detect ball position via CV (white sphere detection) + LiDAR depth confirmation
-- [ ] Calculate **club length**: 3D distance from wrist to club head
-- [ ] Calculate **lie angle**: angle between shaft vector (wrist→club head) and ground plane
-- [ ] Validate lie angle against expected range (56–64°) — flag if wildly off as detection error
-- [ ] Calculate **shaft plane at address**: plane through spine, hands, club head → predicted swing plane
-- [ ] Calculate **arm length**: shoulder→wrist 3D distance (constrains max swing arc radius)
+- [x] Calculate **club length**: 3D distance from wrist to club head (`finaliseCalibration`)
+- [x] Calculate **lie angle**: angle between shaft vector (wrist→club head) and ground plane
+- [x] Validate lie angle against expected range (56–64°) — flag if wildly off as detection error
+- [x] Calculate **shaft plane at address**: plane through spine, hands, club head → predicted swing plane
+- [x] Calculate **arm length**: shoulder→wrist 3D distance (constrains max swing arc radius)
 - [ ] Calculate **ball-to-hands geometry**: 3D vectors defining expected impact zone
-- [ ] Store all derived measurements as calibration constraints for tracking pipeline
+- [x] Store all derived measurements as calibration constraints (`CalibrationSnapshot`)
 - [ ] Display calibration results to user: club length, lie angle, ball position confirmed
-- [ ] Allow user to select club type (driver, iron, wedge) for context
+- [x] Allow user to select club type (driver, iron, wedge) for context
 
 #### Phase 3: Lock & Capture Mode
 - [ ] Lock calibration data when user confirms
@@ -126,10 +126,12 @@
 - [x] Confidence scoring per measurement
 - [x] Build speed curve data structure (SpeedProfile model)
 - [x] Post-capture analysis engine orchestrating full pipeline (`PostCaptureAnalysisEngine.swift`)
-- [ ] Handle perspective correction — adjust scale factor based on estimated depth
-- [ ] **Milestone:** First automated club head speed measurement (requires device testing)
+- [x] Handle perspective correction (`SwingPlaneCorrector.swift` — depth-based scale adjustment)
+- [x] 3D swing plane speed correction (accounts for club moving through tilted plane)
+- [x] Multi-frame linear regression for impact speed (more robust than 2-frame differencing)
+- [ ] **Milestone:** First automated club head speed measurement *(requires device testing)*
 
-### 2.5 Auto Swing Detection (Motion-Based)
+### 2.5 Auto Swing Detection (Motion-Based + Audio)
 - [x] Implement swing state machine (`SwingStateMachine.swift`)
 - [x] State transitions: IDLE → PLAYER_DETECTED → READY → SWING_IN_PROGRESS → SWING_COMPLETE → PROCESSING → RESULT
 - [x] Implement stillness detection for READY state (low frame difference for N frames)
@@ -137,9 +139,10 @@
 - [x] Implement swing completion detection (motion cessation after minimum duration)
 - [x] Distinguish real swings from practice waggles (duration + speed thresholds)
 - [x] Callbacks for onStateChange, onSwingStart, onSwingComplete
-- [ ] Auto-start 240fps capture on swing detection
-- [ ] Auto-stop capture on swing completion
-- [ ] Test with real golf swings to tune thresholds
+- [x] Auto-start 240fps capture on swing detection (`SwingCaptureCoordinator`)
+- [x] Auto-stop capture on swing completion (audio-triggered + safety timeout)
+- [x] Full capture orchestration: audio onset → record → impact → stop → analyse → result
+- [ ] Test with real golf swings to tune thresholds *(requires device)*
 
 ### 2.6 Audio Feedback System (Beeps + Voice)
 - [x] Design audio feedback sound set (distinct tones for each state)

@@ -172,6 +172,69 @@ struct SpeedCalculator {
         return min(1.0, max(0.0, score))
     }
 
+    // MARK: - Multi-Frame Regression Speed
+
+    /// Calculate speed using linear regression over multiple frames near the target timestamp.
+    /// More robust than two-frame differencing — reduces noise and handles variable frame intervals.
+    ///
+    /// Fits position-vs-time to a line using least squares. The slope is velocity.
+    /// Uses `windowFrames` frames centered on the target.
+    static func regressionSpeed(
+        positions: [TrackedPosition],
+        nearTimestamp: TimeInterval,
+        calibration: CalibrationSnapshot,
+        windowFrames: Int = 5
+    ) -> Double? {
+        guard positions.count >= 3, calibration.pixelsPerMetre > 0 else { return nil }
+
+        // Find frames closest to target timestamp
+        let sorted = positions.sorted { abs($0.frameTimestamp - nearTimestamp) < abs($1.frameTimestamp - nearTimestamp) }
+        let window = Array(sorted.prefix(windowFrames))
+
+        guard window.count >= 3 else { return nil }
+
+        // Convert pixel positions to real-world distances (1D arc length from first position)
+        let refPos = window.first!.position2D
+        let refTime = window.first!.frameTimestamp
+
+        var times: [Double] = []
+        var distancesX: [Double] = []
+        var distancesY: [Double] = []
+
+        for pos in window {
+            times.append(pos.frameTimestamp - refTime)
+            distancesX.append(Double(pos.position2D.x - refPos.x) / calibration.pixelsPerMetre)
+            distancesY.append(Double(pos.position2D.y - refPos.y) / calibration.pixelsPerMetre)
+        }
+
+        // Linear regression: fit distance = a + b * time
+        // b = velocity in metres/second
+        guard let slopeX = linearRegressionSlope(x: times, y: distancesX),
+              let slopeY = linearRegressionSlope(x: times, y: distancesY) else {
+            return nil
+        }
+
+        // Speed = magnitude of velocity vector
+        let speedMs = sqrt(slopeX * slopeX + slopeY * slopeY)
+        return speedMs * AppConstants.Speed.metersPerSecondToMph
+    }
+
+    /// Simple linear regression — returns the slope (b in y = a + bx).
+    private static func linearRegressionSlope(x: [Double], y: [Double]) -> Double? {
+        let n = Double(x.count)
+        guard n >= 2 else { return nil }
+
+        let sumX = x.reduce(0, +)
+        let sumY = y.reduce(0, +)
+        let sumXY = zip(x, y).map(*).reduce(0, +)
+        let sumXX = x.map { $0 * $0 }.reduce(0, +)
+
+        let denominator = n * sumXX - sumX * sumX
+        guard abs(denominator) > 1e-12 else { return nil }
+
+        return (n * sumXY - sumX * sumY) / denominator
+    }
+
     // MARK: - Phase Classification
 
     /// Classify the swing phase for a given frame based on speed and timing.

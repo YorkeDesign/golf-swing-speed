@@ -89,6 +89,92 @@ struct SpeedCalculationTests {
         #expect(0.3 < AppConstants.LagAnalysis.castingLRIThreshold)
     }
 
+    @Test("Multi-frame regression matches expected speed")
+    func multiFrameRegression() {
+        let calibration = CalibrationSnapshot(
+            method: .manual,
+            pixelsPerMetre: 500.0,
+            impactZoneX: 960,
+            impactZoneY: 540
+        )
+
+        // Simulate 100 mph = 44.7 m/s = 22,350 px/s at 500 ppm
+        // At 240fps, that's 93.1 px/frame
+        let pixelsPerFrame: CGFloat = 93.1
+        var positions: [TrackedPosition] = []
+        for i in 0..<7 {
+            let t = 1.0 + Double(i) / 240.0
+            positions.append(TrackedPosition(
+                frameTimestamp: t,
+                position2D: CGPoint(x: 960 - CGFloat(i) * pixelsPerFrame, y: 540),
+                position3D: nil,
+                confidence: 0.9,
+                source: .opticalFlow
+            ))
+        }
+
+        let speed = SpeedCalculator.regressionSpeed(
+            positions: positions,
+            nearTimestamp: 1.012, // ~3rd frame
+            calibration: calibration,
+            windowFrames: 5
+        )
+
+        #expect(speed != nil)
+        if let speed {
+            #expect(abs(speed - 100.0) < 2.0,
+                    "Regression speed should be ~100 mph for simulated data, got \(speed)")
+        }
+    }
+
+    @Test("Regression handles noisy positions better than two-frame")
+    func regressionVsTwoFrame() {
+        let calibration = CalibrationSnapshot(
+            method: .manual,
+            pixelsPerMetre: 500.0,
+            impactZoneX: 960,
+            impactZoneY: 540
+        )
+
+        // Simulated positions with noise
+        let basePixelsPerFrame: CGFloat = 93.1 // 100 mph
+        var positions: [TrackedPosition] = []
+        let noise: [CGFloat] = [0, 3, -5, 2, -4, 1, -3] // Pixel noise
+
+        for i in 0..<7 {
+            let t = 1.0 + Double(i) / 240.0
+            positions.append(TrackedPosition(
+                frameTimestamp: t,
+                position2D: CGPoint(x: 960 - CGFloat(i) * basePixelsPerFrame + noise[i], y: 540),
+                position3D: nil,
+                confidence: 0.8,
+                source: .opticalFlow
+            ))
+        }
+
+        let regressionSpeed = SpeedCalculator.regressionSpeed(
+            positions: positions,
+            nearTimestamp: 1.012,
+            calibration: calibration,
+            windowFrames: 5
+        )
+
+        // Two-frame speed between two noisy adjacent frames
+        let twoFrameSpeed = SpeedCalculator.instantaneousSpeed(
+            from: positions[2], to: positions[3], calibration: calibration
+        )
+
+        // Regression should be closer to 100 mph than two-frame
+        #expect(regressionSpeed != nil)
+        #expect(twoFrameSpeed != nil)
+        if let regression = regressionSpeed, let twoFrame = twoFrameSpeed {
+            let regressionError = abs(regression - 100.0)
+            let twoFrameError = abs(twoFrame - 100.0)
+            #expect(regressionError <= twoFrameError + 1.0,
+                    "Regression (\(regression)) should be at least as accurate as two-frame (\(twoFrame)) for noisy data")
+        }
+    }
+
     @Test("Speed loss per 10 degrees lag")
     func speedLossFromLag() {
         // Chu et al.: 10° retained lag ≈ 5 mph

@@ -26,6 +26,13 @@ struct CaptureView: View {
     @State private var debugMotionMagnitude: Double = 0
     @State private var debugCentroid: CGPoint?
 
+    // Auto-capture
+    @AppStorage("autoCapture") private var autoCaptureEnabled = false
+    @State private var captureCoordinator: SwingCaptureCoordinator?
+    @State private var analysisProgress: Double = 0
+    @State private var analysisPhaseLabel: String = ""
+    @State private var showAutoAnalysisResult = false
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -63,6 +70,12 @@ struct CaptureView: View {
 
                         // State indicator
                         stateIndicator
+
+                        // Auto-capture analysis progress
+                        if let coordinator = captureCoordinator,
+                           coordinator.state == .analysing {
+                            analysisProgressView
+                        }
 
                         // Speed display
                         if let speed = lastSpeedMph {
@@ -256,6 +269,27 @@ struct CaptureView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
     }
 
+    // MARK: - Analysis Progress
+
+    private var analysisProgressView: some View {
+        VStack(spacing: 8) {
+            ProgressView(value: analysisProgress) {
+                Text(analysisPhaseLabel)
+                    .font(.caption)
+                    .foregroundStyle(.white)
+            }
+            .tint(.blue)
+
+            Text("\(Int(analysisProgress * 100))%")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
+                .monospacedDigit()
+        }
+        .padding(16)
+        .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 40)
+    }
+
     // MARK: - Recording Info
 
     private func recordingInfo(frameCount: Int) -> some View {
@@ -365,6 +399,14 @@ struct CaptureView: View {
             Task.detached {
                 await cameraManager.startSession()
             }
+
+            // Initialise capture coordinator for auto-capture mode
+            let coordinator = SwingCaptureCoordinator(
+                cameraManager: cameraManager,
+                audioFeedback: audioFeedback
+            )
+            coordinator.configure(calibration: calibrationManager.calibrationData)
+            captureCoordinator = coordinator
         } catch {
             errorMessage = error.localizedDescription
         }

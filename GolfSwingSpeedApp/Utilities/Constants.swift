@@ -2,7 +2,7 @@ import Foundation
 
 enum AppConstants {
     static let appName = "Golf Swing Speed App"
-    static let appVersion = "0.01.10"
+    static let appVersion = "0.02.01"
 
     enum Camera {
         static let targetFPS: Double = 240
