@@ -17,15 +17,18 @@ final class CameraMovementDetector {
     private(set) var totalMovement: Double = 0
     private(set) var warningMessage: String?
 
-    // Thresholds
-    private let rotationThreshold: Double = 0.02  // rad/s — very slight rotation
-    private let accelerationThreshold: Double = 0.05  // g — beyond gravity noise
-    private let movementWarningThreshold: Double = 0.5  // Accumulated movement score
+    // Thresholds — tuned to avoid false positives from normal sensor noise
+    // Normal stationary noise: ~0.01-0.05 rad/s rotation, ~0.01-0.03g acceleration
+    private let rotationThreshold: Double = 0.15  // rad/s — significant rotation
+    private let accelerationThreshold: Double = 0.12  // g — significant acceleration (gravity removed)
+    private let movementWarningThreshold: Double = 3.0  // Accumulated movement score before warning
 
     // Core Motion
     private let motionManager = CMMotionManager()
     private var isMonitoring = false
     private var movementScore: Double = 0
+    private var sampleCount: Int = 0
+    private let warmupSamples: Int = 30  // Ignore first 3 seconds (10Hz × 3s)
 
     // MARK: - Start/Stop
 
@@ -54,6 +57,7 @@ final class CameraMovementDetector {
     /// Reset the movement accumulator (e.g., after recalibration).
     func reset() {
         movementScore = 0
+        sampleCount = 0
         isStable = true
         warningMessage = nil
         totalMovement = 0
@@ -62,6 +66,11 @@ final class CameraMovementDetector {
     // MARK: - Motion Processing
 
     private func processMotion(_ motion: CMDeviceMotion) {
+        sampleCount += 1
+
+        // Skip warmup period while sensors stabilise
+        guard sampleCount > warmupSamples else { return }
+
         let rotation = motion.rotationRate
         let userAccel = motion.userAcceleration // Gravity removed
 
