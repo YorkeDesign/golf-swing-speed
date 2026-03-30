@@ -32,7 +32,7 @@ struct CaptureView: View {
     @State private var analysisProgress: Double = 0
     @State private var analysisPhaseLabel: String = ""
     @State private var showAutoAnalysisResult = false
-    @State private var cameraMovementDetector = CameraMovementDetector()
+    // Camera movement detector removed — replaced with tripod instruction in UI
 
     var body: some View {
         NavigationStack {
@@ -86,19 +86,6 @@ struct CaptureView: View {
                         // Recording info
                         if let frameCount = lastFrameCount {
                             recordingInfo(frameCount: frameCount)
-                        }
-
-                        // Camera movement warning
-                        if !cameraMovementDetector.isStable {
-                            HStack(spacing: 6) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.yellow)
-                                Text(cameraMovementDetector.warningMessage ?? "Camera moved")
-                                    .font(.caption)
-                                    .foregroundStyle(.yellow)
-                            }
-                            .padding(8)
-                            .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
                         }
 
                         // Error message
@@ -232,9 +219,14 @@ struct CaptureView: View {
     private var stateIndicator: some View {
         switch swingState {
         case .idle:
-            Label("Point camera at player", systemImage: "person.fill.viewfinder")
-                .font(.headline)
-                .foregroundStyle(.white.opacity(0.7))
+            VStack(spacing: 6) {
+                Label("Mount on tripod, point at player", systemImage: "camera.on.rectangle")
+                    .font(.headline)
+                    .foregroundStyle(.white.opacity(0.7))
+                Text("Keep phone steady during capture")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
 
         case .playerDetected:
             Label("Player detected — take address position", systemImage: "person.fill.checkmark")
@@ -413,9 +405,6 @@ struct CaptureView: View {
             Task.detached {
                 await cameraManager.startSession()
             }
-
-            // Start monitoring camera stability
-            cameraMovementDetector.startMonitoring()
 
             // Initialise capture coordinator for auto-capture mode
             let coordinator = SwingCaptureCoordinator(
