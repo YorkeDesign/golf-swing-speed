@@ -15,6 +15,14 @@ struct CaptureView: View {
     @State private var errorMessage: String?
     @State private var sessionId = UUID()
 
+    // Recording countdown & auto-stop
+    @State private var countdownSeconds: Int = 0
+    @State private var isCountingDown = false
+    @State private var recordingTimer: Timer?
+    @State private var autoStopTask: Task<Void, Never>?
+    private let recordingCountdown: Int = 5  // Seconds before recording starts
+    private let maxRecordingSeconds: Double = 4.0  // Auto-stop after this
+
     @State private var cameraManager = CameraManager()
     @State private var permissionsManager = PermissionsManager()
     @State private var calibrationManager = CalibrationManager()
@@ -240,13 +248,29 @@ struct CaptureView: View {
                 .foregroundStyle(.green)
 
         case .swingInProgress:
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(.red)
-                    .frame(width: 12, height: 12)
-                Text("Recording...")
-                    .font(.headline)
-                    .foregroundStyle(.red)
+            if isCountingDown {
+                VStack(spacing: 8) {
+                    Text("\(countdownSeconds)")
+                        .font(.system(size: 80, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("Get into position...")
+                        .font(.headline)
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+            } else {
+                VStack(spacing: 6) {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 12, height: 12)
+                        Text("Recording — swing when ready!")
+                            .font(.headline)
+                            .foregroundStyle(.red)
+                    }
+                    Text("Auto-stops in \(Int(maxRecordingSeconds))s")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
             }
 
         case .swingComplete, .processing:
@@ -473,37 +497,83 @@ struct CaptureView: View {
 
     private func toggleRecording() async {
         if swingState == .swingInProgress {
-            // Stop recording
-            do {
-                let url = try await cameraManager.stopRecording()
-                let timestamps = await cameraManager.capturedFrameTimestamps
-                lastRecordingURL = url
-                lastFrameCount = timestamps.count
-                audioFeedback.swingCaptured()
-
-                // Run automated analysis if calibrated, otherwise show result with analyse button
-                if calibrationManager.isCalibrated {
-                    swingState = .processing
-                    await runAutomatedAnalysis(videoURL: url)
-                } else {
-                    swingState = .result
-                    // User can tap "Analyse Frames" button to open frame viewer
-                }
-            } catch {
-                errorMessage = error.localizedDescription
-                swingState = .idle
-            }
+            // Manual stop — cancel auto-stop and finish
+            autoStopTask?.cancel()
+            autoStopTask = nil
+            recordingTimer?.invalidate()
+            recordingTimer = nil
+            isCountingDown = false
+            await finishRecording()
         } else {
-            // Start recording
-            do {
-                errorMessage = nil
-                lastSpeedMph = nil
-                lastFrameCount = nil
-                _ = try await cameraManager.startRecording()
-                swingState = .swingInProgress
-            } catch {
-                errorMessage = error.localizedDescription
+            // Start countdown before recording
+            errorMessage = nil
+            lastSpeedMph = nil
+            lastFrameCount = nil
+            swingState = .swingInProgress
+            isCountingDown = true
+            countdownSeconds = recordingCountdown
+
+            // Countdown with beeps
+            recordingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [self] timer in
+                if countdownSeconds > 1 {
+                    countdownSeconds -= 1
+                    if countdownSeconds <= 3 {
+                        audioFeedback.ready()
+                    } else {
+                        let feedback = UIImpactFeedbackGenerator(style: .light)
+                        feedback.impactOccurred()
+                    }
+                } else {
+                    // Countdown complete — start recording
+                    timer.invalidate()
+                    recordingTimer = nil
+                    isCountingDown = false
+
+                    Task {
+                        await startRecordingAfterCountdown()
+                    }
+                }
             }
+        }
+    }
+
+    private func startRecordingAfterCountdown() async {
+        do {
+            _ = try await cameraManager.startRecording()
+
+            // Triple beep to signal "recording started — swing now!"
+            audioFeedback.ready()
+
+            // Auto-stop after maxRecordingSeconds
+            autoStopTask = Task {
+                try? await Task.sleep(for: .seconds(maxRecordingSeconds))
+                guard !Task.isCancelled else { return }
+                await finishRecording()
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            swingState = .idle
+        }
+    }
+
+    private func finishRecording() async {
+        do {
+            let url = try await cameraManager.stopRecording()
+            let timestamps = await cameraManager.capturedFrameTimestamps
+            lastRecordingURL = url
+            lastFrameCount = timestamps.count
+            audioFeedback.swingCaptured()
+
+            // Run automated analysis if calibrated, otherwise show result with analyse button
+            if calibrationManager.isCalibrated {
+                swingState = .processing
+                await runAutomatedAnalysis(videoURL: url)
+            } else {
+                swingState = .result
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            swingState = .idle
         }
     }
 
