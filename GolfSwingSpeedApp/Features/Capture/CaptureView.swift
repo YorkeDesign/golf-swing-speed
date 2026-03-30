@@ -537,13 +537,12 @@ struct CaptureView: View {
 
             if let speed = result.impactSpeedMph {
                 audioFeedback.speedResult(mph: speed)
+                // Save the swing record with analysis results
+                saveSwingRecord(speed: speed, profile: result.speedProfile)
+            } else {
+                // Analysis ran but couldn't determine speed (no tracking data)
+                errorMessage = "Could not track club head — try manual frame analysis"
             }
-
-            // Save the swing record with analysis results
-            saveSwingRecord(
-                speed: result.impactSpeedMph,
-                profile: result.speedProfile
-            )
         } catch {
             errorMessage = "Analysis failed: \(error.localizedDescription)"
             swingState = .result
