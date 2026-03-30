@@ -299,12 +299,24 @@ struct CaptureView: View {
     // MARK: - Recording Info
 
     private func recordingInfo(frameCount: Int) -> some View {
-        Text("\(frameCount) frames captured")
-            .font(.subheadline)
-            .fontWeight(.medium)
-            .foregroundStyle(.white.opacity(0.8))
-            .padding(8)
-            .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+        VStack(spacing: 4) {
+            Text("\(frameCount) frames captured")
+                .font(.subheadline)
+                .fontWeight(.medium)
+
+            if frameCount == 0 {
+                Text("No frames recorded — try recording for longer")
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+            } else if frameCount < 50 {
+                Text("Short recording — try holding record for 1-3 seconds")
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+            }
+        }
+        .foregroundStyle(.white.opacity(0.8))
+        .padding(8)
+        .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - Bottom Controls

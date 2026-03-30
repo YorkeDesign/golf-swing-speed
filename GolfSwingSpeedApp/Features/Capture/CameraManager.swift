@@ -7,13 +7,16 @@ actor CameraManager {
     private var movieOutput: AVCaptureMovieFileOutput?
     private var photoOutput: AVCapturePhotoOutput?
     private var videoDevice: AVCaptureDevice?
+    private let frameTimestampCollector = FrameTimestampCollector()
 
     private(set) var isConfigured = false
     private(set) var isRecording = false
     private(set) var actualFPS: Double = 0
 
     // Frame buffer for post-capture analysis
-    private(set) var capturedFrameTimestamps: [TimeInterval] = []
+    var capturedFrameTimestamps: [TimeInterval] {
+        frameTimestampCollector.timestamps
+    }
     private var recordingURL: URL?
     private var recordingDelegate: MovieRecordingDelegate?
 
@@ -60,6 +63,10 @@ actor CameraManager {
         }
         captureSession.addOutput(dataOutput)
         videoOutput = dataOutput
+
+        // Set sample buffer delegate to collect frame timestamps during recording
+        let delegateQueue = DispatchQueue(label: "com.golfswingspeed.videodata", qos: .userInitiated)
+        dataOutput.setSampleBufferDelegate(frameTimestampCollector, queue: delegateQueue)
 
         // Add movie file output for recording
         let movieOut = AVCaptureMovieFileOutput()
@@ -137,7 +144,7 @@ actor CameraManager {
         let fileName = "swing_\(UUID().uuidString).mov"
         let url = tempDir.appendingPathComponent(fileName)
 
-        capturedFrameTimestamps = []
+        frameTimestampCollector.startCollecting()
         recordingURL = url
 
         let delegate = MovieRecordingDelegate()
@@ -155,6 +162,7 @@ actor CameraManager {
 
         movieOutput.stopRecording()
         isRecording = false
+        frameTimestampCollector.stopCollecting()
 
         // Wait for recording to finish
         if let delegate = recordingDelegate {
@@ -177,11 +185,7 @@ actor CameraManager {
         return try await delegate.waitForPhoto()
     }
 
-    // MARK: - Frame Timestamp Tracking
-
-    func recordFrameTimestamp(_ timestamp: TimeInterval) {
-        capturedFrameTimestamps.append(timestamp)
-    }
+    // Frame timestamp collection is handled by FrameTimestampCollector (sample buffer delegate)
 
     // MARK: - Permission
 
@@ -282,5 +286,42 @@ final class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
         try await withCheckedThrowingContinuation { continuation in
             self.photoContinuation = continuation
         }
+    }
+}
+
+// MARK: - Frame Timestamp Collector
+
+/// Collects frame timestamps from the video data output during recording.
+/// Implements AVCaptureVideoDataOutputSampleBufferDelegate to receive every frame.
+final class FrameTimestampCollector: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
+    private(set) var timestamps: [TimeInterval] = []
+    private var isCollecting = false
+
+    func startCollecting() {
+        timestamps = []
+        isCollecting = true
+    }
+
+    func stopCollecting() {
+        isCollecting = false
+    }
+
+    func captureOutput(
+        _ output: AVCaptureOutput,
+        didOutput sampleBuffer: CMSampleBuffer,
+        from connection: AVCaptureConnection
+    ) {
+        guard isCollecting else { return }
+        let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+        let timestamp = CMTimeGetSeconds(pts)
+        timestamps.append(timestamp)
+    }
+
+    func captureOutput(
+        _ output: AVCaptureOutput,
+        didDrop sampleBuffer: CMSampleBuffer,
+        from connection: AVCaptureConnection
+    ) {
+        // Frame dropped — can log this for diagnostics
     }
 }
