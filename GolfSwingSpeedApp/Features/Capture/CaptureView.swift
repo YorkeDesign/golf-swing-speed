@@ -255,7 +255,46 @@ struct CaptureView: View {
                 .foregroundStyle(.white)
 
         case .result:
-            EmptyView()
+            VStack(spacing: 12) {
+                if lastSpeedMph != nil {
+                    // Speed already calculated — show option to record again
+                    Button {
+                        swingState = .idle
+                        lastSpeedMph = nil
+                        lastFrameCount = nil
+                    } label: {
+                        Label("Record Another", systemImage: "arrow.clockwise")
+                            .font(.headline)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                            .background(.blue, in: RoundedRectangle(cornerRadius: 12))
+                            .foregroundStyle(.white)
+                    }
+                } else if let url = lastRecordingURL {
+                    // No speed yet — offer to analyse
+                    VStack(spacing: 8) {
+                        Button {
+                            showFrameAnalysis = true
+                        } label: {
+                            Label("Analyse Frames", systemImage: "film")
+                                .font(.headline)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
+                                .background(.blue, in: RoundedRectangle(cornerRadius: 12))
+                                .foregroundStyle(.white)
+                        }
+
+                        Button {
+                            swingState = .idle
+                            lastFrameCount = nil
+                        } label: {
+                            Text("Discard & Record Again")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.6))
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -442,13 +481,13 @@ struct CaptureView: View {
                 lastFrameCount = timestamps.count
                 audioFeedback.swingCaptured()
 
-                // Run automated analysis if calibrated, otherwise show manual frame viewer
+                // Run automated analysis if calibrated, otherwise show result with analyse button
                 if calibrationManager.isCalibrated {
                     swingState = .processing
                     await runAutomatedAnalysis(videoURL: url)
                 } else {
                     swingState = .result
-                    showFrameAnalysis = true
+                    // User can tap "Analyse Frames" button to open frame viewer
                 }
             } catch {
                 errorMessage = error.localizedDescription
